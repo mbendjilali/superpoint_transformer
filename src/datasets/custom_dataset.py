@@ -40,8 +40,6 @@ def read_tile(
             / 60000
         )
 
-        data.elevation = torch.FloatTensor(tile["hag"].astype(float))
-
         y = torch.LongTensor([ID2TRAINID[_] for _ in tile["classification"]])
         data.y = y  # type: ignore
 
