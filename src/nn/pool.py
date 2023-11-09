@@ -10,8 +10,14 @@ from src.utils.nn import init_weights, LearnableParameter, build_qk_scale_func
 
 
 __all__ = [
-    'pool_factory', 'SumPool', 'MeanPool', 'MaxPool', 'MinPool',
-    'AttentivePool', 'AttentivePoolWithLearntQueries']
+    "pool_factory",
+    "SumPool",
+    "MeanPool",
+    "MaxPool",
+    "MinPool",
+    "AttentivePool",
+    "AttentivePoolWithLearntQueries",
+]
 
 
 def pool_factory(pool, *args, **kwargs):
@@ -21,13 +27,13 @@ def pool_factory(pool, *args, **kwargs):
     """
     if isinstance(pool, (AggregationPoolMixIn, BaseAttentivePool)):
         return pool
-    if pool == 'max':
+    if pool == "max":
         return MaxPool()
-    if pool == 'min':
+    if pool == "min":
         return MinPool()
-    if pool == 'mean':
+    if pool == "mean":
         return MeanPool()
-    if pool == 'sum':
+    if pool == "sum":
         return SumPool()
     return pool(*args, **kwargs)
 
@@ -49,6 +55,7 @@ class AggregationPoolMixIn:
         from `index.max() + 1`
     :return:
     """
+
     def __call__(self, x_child, x_parent, index, edge_attr=None, num_pool=None):
         return super().__call__(x_child, index=index, dim_size=num_pool)
 
@@ -77,21 +84,22 @@ class BaseAttentivePool(nn.Module):
     """
 
     def __init__(
-            self,
-            dim=None,
-            num_heads=1,
-            in_dim=None,
-            out_dim=None,
-            qkv_bias=True,
-            qk_dim=8,
-            qk_scale=None,
-            attn_drop=None,
-            drop=None,
-            in_rpe_dim=9,
-            k_rpe=False,
-            q_rpe=False,
-            v_rpe=False,
-            heads_share_rpe=False):
+        self,
+        dim=None,
+        num_heads=1,
+        in_dim=None,
+        out_dim=None,
+        qkv_bias=True,
+        qk_dim=8,
+        qk_scale=None,
+        attn_drop=None,
+        drop=None,
+        in_rpe_dim=9,
+        k_rpe=False,
+        q_rpe=False,
+        v_rpe=False,
+        heads_share_rpe=False,
+    ):
         super().__init__()
 
         assert dim % num_heads == 0, f"dim must be a multiple of num_heads"
@@ -124,13 +132,12 @@ class BaseAttentivePool(nn.Module):
         self.in_proj = nn.Linear(in_dim, dim) if in_dim is not None else None
         self.out_proj = nn.Linear(dim, out_dim) if out_dim is not None else None
 
-        self.attn_drop = nn.Dropout(attn_drop) \
-            if attn_drop is not None and attn_drop > 0 else None
-        self.out_drop = nn.Dropout(drop) \
-            if drop is not None and drop > 0 else None
+        self.attn_drop = (
+            nn.Dropout(attn_drop) if attn_drop is not None and attn_drop > 0 else None
+        )
+        self.out_drop = nn.Dropout(drop) if drop is not None and drop > 0 else None
 
-    def forward(
-            self, x_child, x_parent, index, edge_attr=None, num_pool=None):
+    def forward(self, x_child, x_parent, index, edge_attr=None, num_pool=None):
         """
         :param x_child: Tensor of shape (Nc, Cc)
             Node features for the children nodes
@@ -162,8 +169,8 @@ class BaseAttentivePool(nn.Module):
         kv = self.kv(x_child)  # [Nc, DH + C]
 
         # Expand queries and separate keys and values
-        q = q[index].view(Nc, H, D)     # [Nc, H, D]
-        k = kv[:, :DH].view(Nc, H, D)   # [Nc, H, D]
+        q = q[index].view(Nc, H, D)  # [Nc, H, D]
+        k = kv[:, :DH].view(Nc, H, D)  # [Nc, H, D]
         v = kv[:, DH:].view(Nc, H, -1)  # [Nc, H, C // H]
 
         # Apply scaling on the queries
@@ -188,7 +195,7 @@ class BaseAttentivePool(nn.Module):
             q = q + rpe.view(Nc, H, -1)
 
         # Compute compatibility scores from the query-key products
-        compat = torch.einsum('nhd, nhd -> nh', q, k)  # [Nc, H]
+        compat = torch.einsum("nhd, nhd -> nh", q, k)  # [Nc, H]
 
         # Compute the attention scores with scaled softmax
         attn = softmax(compat, index=index, dim=0, num_nodes=Np)  # [Nc, H]
@@ -222,27 +229,28 @@ class BaseAttentivePool(nn.Module):
         raise NotImplementedError
 
     def extra_repr(self) -> str:
-        return f'dim={self.dim}, num_heads={self.num_heads}'
+        return f"dim={self.dim}, num_heads={self.num_heads}"
 
 
 class AttentivePool(BaseAttentivePool):
     def __init__(
-            self,
-            dim=None,
-            q_in_dim=None,
-            num_heads=1,
-            in_dim=None,
-            out_dim=None,
-            qkv_bias=True,
-            qk_dim=8,
-            qk_scale=None,
-            attn_drop=None,
-            drop=None,
-            in_rpe_dim=9,
-            k_rpe=False,
-            q_rpe=False,
-            v_rpe=False,
-            heads_share_rpe=False):
+        self,
+        dim=None,
+        q_in_dim=None,
+        num_heads=1,
+        in_dim=None,
+        out_dim=None,
+        qkv_bias=True,
+        qk_dim=8,
+        qk_scale=None,
+        attn_drop=None,
+        drop=None,
+        in_rpe_dim=9,
+        k_rpe=False,
+        q_rpe=False,
+        v_rpe=False,
+        heads_share_rpe=False,
+    ):
         super().__init__(
             dim=dim,
             num_heads=num_heads,
@@ -257,7 +265,8 @@ class AttentivePool(BaseAttentivePool):
             k_rpe=k_rpe,
             q_rpe=q_rpe,
             v_rpe=v_rpe,
-            heads_share_rpe=heads_share_rpe)
+            heads_share_rpe=heads_share_rpe,
+        )
 
         # Queries will be built from input parent feature
         self.q = nn.Linear(q_in_dim, qk_dim * num_heads, bias=qkv_bias)
@@ -273,24 +282,24 @@ class AttentivePool(BaseAttentivePool):
         return self.q(x_parent)  # [Np, DH]
 
 
-
 class AttentivePoolWithLearntQueries(BaseAttentivePool):
     def __init__(
-            self,
-            dim=None,
-            num_heads=1,
-            in_dim=None,
-            out_dim=None,
-            qkv_bias=True,
-            qk_dim=8,
-            qk_scale=None,
-            attn_drop=None,
-            drop=None,
-            in_rpe_dim=18,
-            k_rpe=False,
-            q_rpe=False,
-            v_rpe=False,
-            heads_share_rpe=False):
+        self,
+        dim=None,
+        num_heads=1,
+        in_dim=None,
+        out_dim=None,
+        qkv_bias=True,
+        qk_dim=8,
+        qk_scale=None,
+        attn_drop=None,
+        drop=None,
+        in_rpe_dim=18,
+        k_rpe=False,
+        q_rpe=False,
+        v_rpe=False,
+        heads_share_rpe=False,
+    ):
         super().__init__(
             dim=dim,
             num_heads=num_heads,
@@ -305,7 +314,8 @@ class AttentivePoolWithLearntQueries(BaseAttentivePool):
             k_rpe=k_rpe,
             q_rpe=q_rpe,
             v_rpe=v_rpe,
-            heads_share_rpe=heads_share_rpe)
+            heads_share_rpe=heads_share_rpe,
+        )
 
         # Each head will learn its own query and all parent nodes will
         # use these same queries.

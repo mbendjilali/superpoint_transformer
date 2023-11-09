@@ -1,7 +1,7 @@
 from torch import nn
 
 
-__all__ = ['MultiLoss']
+__all__ = ["MultiLoss"]
 
 
 class MultiLoss(nn.Module):
@@ -28,7 +28,7 @@ class MultiLoss(nn.Module):
             self.lambdas[i] = self.lambdas[i].to(*args, **kwargs)
 
     def extra_repr(self) -> str:
-        return f'lambdas={self.lambdas}'
+        return f"lambdas={self.lambdas}"
 
     def forward(self, a, b, **kwargs):
         loss = 0
@@ -38,24 +38,23 @@ class MultiLoss(nn.Module):
 
     @property
     def weight(self):
-        """MultiLoss supports `weight` if all its criteria support it.
-        """
+        """MultiLoss supports `weight` if all its criteria support it."""
         return self.criteria[0].weight
 
     @weight.setter
     def weight(self, weight):
-        """MultiLoss supports `weight` if all its criteria support it.
-        """
+        """MultiLoss supports `weight` if all its criteria support it."""
         for i in range(len(self)):
             self.criteria[i].weight = weight
 
-    def state_dict(self, *args, destination=None, prefix='', keep_vars=False):
+    def state_dict(self, *args, destination=None, prefix="", keep_vars=False):
         """Normal `state_dict` behavior, except for the shared criterion
         weights, which are not saved under `prefix.criteria.i.weight`
         but under `prefix.weight`.
         """
         destination = super().state_dict(
-            *args, destination=destination, prefix=prefix, keep_vars=keep_vars)
+            *args, destination=destination, prefix=prefix, keep_vars=keep_vars
+        )
 
         # Remove the 'weight' from the criteria
         for i in range(len(self)):
@@ -72,8 +71,8 @@ class MultiLoss(nn.Module):
         but under `prefix.weight`.
         """
         # Get the weight from the state_dict
-        old_format = state_dict.get('criteria.0.weight')
-        new_format = state_dict.get('weight')
+        old_format = state_dict.get("criteria.0.weight")
+        new_format = state_dict.get("weight")
         weight = new_format if new_format is not None else old_format
         for k in [f"criteria.{i}.weight" for i in range(len(self))]:
             if k in state_dict.keys():

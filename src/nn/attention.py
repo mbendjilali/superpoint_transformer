@@ -5,7 +5,7 @@ from torch_geometric.utils import softmax
 from src.utils.nn import build_qk_scale_func
 
 
-__all__ = ['SelfAttentionBlock']
+__all__ = ["SelfAttentionBlock"]
 
 
 class SelfAttentionBlock(nn.Module):
@@ -35,25 +35,26 @@ class SelfAttentionBlock(nn.Module):
     """
 
     def __init__(
-            self,
-            dim,
-            num_heads=1,
-            in_dim=None,
-            out_dim=None,
-            qkv_bias=True,
-            qk_dim=8,
-            qk_scale=None,
-            attn_drop=None,
-            drop=None,
-            in_rpe_dim=18,
-            k_rpe=False,
-            q_rpe=False,
-            v_rpe=False,
-            k_delta_rpe=False,
-            q_delta_rpe=False,
-            qk_share_rpe=False,
-            q_on_minus_rpe=False,
-            heads_share_rpe=False):
+        self,
+        dim,
+        num_heads=1,
+        in_dim=None,
+        out_dim=None,
+        qkv_bias=True,
+        qk_dim=8,
+        qk_scale=None,
+        attn_drop=None,
+        drop=None,
+        in_rpe_dim=18,
+        k_rpe=False,
+        q_rpe=False,
+        v_rpe=False,
+        k_delta_rpe=False,
+        q_delta_rpe=False,
+        qk_share_rpe=False,
+        q_on_minus_rpe=False,
+        heads_share_rpe=False,
+    ):
         super().__init__()
 
         assert dim % num_heads == 0, f"dim must be a multiple of num_heads"
@@ -78,21 +79,25 @@ class SelfAttentionBlock(nn.Module):
         if not isinstance(q_rpe, bool):
             self.q_rpe = q_rpe
         else:
-            self.q_rpe = nn.Linear(in_rpe_dim, qk_rpe_dim) if \
-                q_rpe and not (k_rpe and qk_share_rpe) else None
+            self.q_rpe = (
+                nn.Linear(in_rpe_dim, qk_rpe_dim)
+                if q_rpe and not (k_rpe and qk_share_rpe)
+                else None
+            )
 
         if not isinstance(k_delta_rpe, bool):
             self.k_delta_rpe = k_delta_rpe
         else:
-            self.k_delta_rpe = nn.Linear(dim, qk_rpe_dim) if k_delta_rpe \
-                else None
+            self.k_delta_rpe = nn.Linear(dim, qk_rpe_dim) if k_delta_rpe else None
 
         if not isinstance(q_delta_rpe, bool):
             self.q_delta_rpe = q_delta_rpe
         else:
-            self.q_delta_rpe = nn.Linear(dim, qk_rpe_dim) if \
-                q_delta_rpe and not (k_delta_rpe and qk_share_rpe) \
+            self.q_delta_rpe = (
+                nn.Linear(dim, qk_rpe_dim)
+                if q_delta_rpe and not (k_delta_rpe and qk_share_rpe)
                 else None
+            )
 
         self.qk_share_rpe = qk_share_rpe
         self.q_on_minus_rpe = q_on_minus_rpe
@@ -105,10 +110,10 @@ class SelfAttentionBlock(nn.Module):
         self.in_proj = nn.Linear(in_dim, dim) if in_dim is not None else None
         self.out_proj = nn.Linear(dim, out_dim) if out_dim is not None else None
 
-        self.attn_drop = nn.Dropout(attn_drop) \
-            if attn_drop is not None and attn_drop > 0 else None
-        self.out_drop = nn.Dropout(drop) \
-            if drop is not None and drop > 0 else None
+        self.attn_drop = (
+            nn.Dropout(attn_drop) if attn_drop is not None and attn_drop > 0 else None
+        )
+        self.out_drop = nn.Dropout(drop) if drop is not None and drop > 0 else None
 
     def forward(self, x, edge_index, edge_attr=None):
         """
@@ -145,9 +150,9 @@ class SelfAttentionBlock(nn.Module):
         # v = qkv[t, 2]  # [E, H, C // H]
 
         # Separate queries, keys, values
-        q = qkv[:, :DH].view(N, H, D)        # [N, H, D]
-        k = qkv[:, DH:2 * DH].view(N, H, D)  # [N, H, D]
-        v = qkv[:, 2 * DH:].view(N, H, -1)   # [N, H, C // H]
+        q = qkv[:, :DH].view(N, H, D)  # [N, H, D]
+        k = qkv[:, DH : 2 * DH].view(N, H, D)  # [N, H, D]
+        v = qkv[:, 2 * DH :].view(N, H, -1)  # [N, H, C // H]
 
         # Expand queries, keys and values to edges
         s = edge_index[0]  # [E]
@@ -211,7 +216,9 @@ class SelfAttentionBlock(nn.Module):
                 rpe = rpe.repeat(1, H)
 
             q = q + rpe.view(E, H, -1)
-        elif self.k_delta_rpe is not None and self.qk_share_rpe and edge_attr is not None:
+        elif (
+            self.k_delta_rpe is not None and self.qk_share_rpe and edge_attr is not None
+        ):
             if self.q_on_minus_rpe:
                 rpe = self.k_delta_rpe(x[edge_index[0]] - x[edge_index[1]])
             else:
@@ -233,7 +240,7 @@ class SelfAttentionBlock(nn.Module):
             v = v + rpe.view(E, H, -1)
 
         # Compute compatibility scores from the query-key products
-        compat = torch.einsum('ehd, ehd -> eh', q, k)  # [E, H]
+        compat = torch.einsum("ehd, ehd -> eh", q, k)  # [E, H]
 
         # Compute the attention scores with scaled softmax
         attn = softmax(compat, index=s, dim=0, num_nodes=N)  # [E, H]
@@ -257,4 +264,4 @@ class SelfAttentionBlock(nn.Module):
         return x
 
     def extra_repr(self) -> str:
-        return f'dim={self.dim}, num_heads={self.num_heads}'
+        return f"dim={self.dim}, num_heads={self.num_heads}"

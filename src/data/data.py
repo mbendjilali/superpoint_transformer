@@ -9,12 +9,23 @@ from torch_geometric.data import Batch as PyGBatch
 from torch_geometric.nn.pool.consecutive import consecutive_cluster
 import src
 from src.data.cluster import Cluster, ClusterBatch
-from src.utils import tensor_idx, is_dense, has_duplicates, \
-    isolated_nodes, knn_2, save_tensor, load_tensor, save_dense_to_csr, \
-    load_csr_to_dense, to_trimmed, to_float_rgb, to_byte_rgb
+from src.utils import (
+    tensor_idx,
+    is_dense,
+    has_duplicates,
+    isolated_nodes,
+    knn_2,
+    save_tensor,
+    load_tensor,
+    save_dense_to_csr,
+    load_csr_to_dense,
+    to_trimmed,
+    to_float_rgb,
+    to_byte_rgb,
+)
 
 
-__all__ = ['Data', 'Batch']
+__all__ = ["Data", "Batch"]
 
 
 class Data(PyGData):
@@ -22,8 +33,7 @@ class Data(PyGData):
     specific needs.
     """
 
-    _NOT_INDEXABLE = ['_csr_', '_cluster_', 'edge_index', 'edge_attr']
-
+    _NOT_INDEXABLE = ["_csr_", "_cluster_", "edge_index", "edge_attr"]
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -32,37 +42,36 @@ class Data(PyGData):
 
     @property
     def pos(self):
-        return self['pos'] if 'pos' in self._store else None
+        return self["pos"] if "pos" in self._store else None
 
     @property
     def rgb(self):
-        return self['rgb'] if 'rgb' in self._store else None
+        return self["rgb"] if "rgb" in self._store else None
 
     @property
     def pred(self):
-        return self['pred'] if 'pred' in self._store else None
+        return self["pred"] if "pred" in self._store else None
 
     @property
     def neighbor_index(self):
-        return self['neighbor_index'] if 'neighbor_index' in self._store \
-            else None
+        return self["neighbor_index"] if "neighbor_index" in self._store else None
 
     @property
     def sub(self):
         """Cluster object indicating subpoint indices for each point."""
-        return self['sub'] if 'sub' in self._store else None
+        return self["sub"] if "sub" in self._store else None
 
     @property
     def super_index(self):
         """Index of the superpoint each point belongs to."""
-        return self['super_index'] if 'super_index' in self._store else None
+        return self["super_index"] if "super_index" in self._store else None
 
     @property
     def v_edge_attr(self):
         """Vertical edge features."""
-        return self['v_edge_attr'] if 'v_edge_attr' in self._store else None
+        return self["v_edge_attr"] if "v_edge_attr" in self._store else None
 
-    def norm_index(self, mode='graph'):
+    def norm_index(self, mode="graph"):
         """Index to be used for LayerNorm.
 
         :param mode: str
@@ -71,21 +80,21 @@ class Data(PyGData):
             point). 'segment' will normalize per segment (ie per
             cluster)
         """
-        if getattr(self, 'batch', None) is not None:
+        if getattr(self, "batch", None) is not None:
             batch = self.batch
         else:
-            batch = torch.zeros(
-                self.num_nodes, device=self.device, dtype=torch.long)
+            batch = torch.zeros(self.num_nodes, device=self.device, dtype=torch.long)
         if self.super_index is not None:
             super_index = self.super_index
         else:
             super_index = torch.zeros(
-                self.num_nodes, device=self.device, dtype=torch.long)
-        if mode == 'graph':
+                self.num_nodes, device=self.device, dtype=torch.long
+            )
+        if mode == "graph":
             return batch
-        elif mode == 'node':
+        elif mode == "node":
             return torch.arange(self.num_nodes, device=self.device)
-        elif mode == 'segment':
+        elif mode == "segment":
             num_batches = batch.max() + 1
             return super_index * num_batches + batch
         else:
@@ -122,8 +131,10 @@ class Data(PyGData):
         `edge_attr`.
         """
         return [
-            k for k in self.keys
-            if k.startswith('edge_') and k not in ['edge_index', 'edge_attr']]
+            k
+            for k in self.keys
+            if k.startswith("edge_") and k not in ["edge_index", "edge_attr"]
+        ]
 
     def raise_if_edge_keys(self):
         """This is a TEMPORARY, HACKY method to be called wherever
@@ -133,12 +144,13 @@ class Data(PyGData):
             raise NotImplementedError(
                 "Edge keys are not fully supported yet, please consider "
                 "stacking all your `edge_` attributes in `edge_attr` for the "
-                "time being")
+                "time being"
+            )
 
     @property
     def v_edge_keys(self):
         """All keys starting with `v_edge_`."""
-        return [k for k in self.keys if k.startswith('v_edge_')]
+        return [k for k in self.keys if k.startswith("v_edge_")]
 
     @property
     def num_edges(self):
@@ -170,8 +182,7 @@ class Data(PyGData):
         return self
 
     def to(self, device, **kwargs):
-        """Extend `torch_geometric.Data.to` to handle Cluster attributes.
-        """
+        """Extend `torch_geometric.Data.to` to handle Cluster attributes."""
         self = super().to(device, **kwargs)
         if self.is_super:
             self.sub = self.sub.to(device, **kwargs)
@@ -179,11 +190,11 @@ class Data(PyGData):
 
     def cpu(self, **kwargs):
         """Move the NAG with all Data in it to CPU."""
-        return self.to('cpu', **kwargs)
+        return self.to("cpu", **kwargs)
 
     def cuda(self, **kwargs):
         """Move the NAG with all Data in it to CUDA."""
-        return self.to('cuda', **kwargs)
+        return self.to("cuda", **kwargs)
 
     @property
     def device(self):
@@ -196,10 +207,12 @@ class Data(PyGData):
     def debug(self):
         """Sanity checks."""
         if self.is_super:
-            assert isinstance(self.sub, Cluster), \
-                "Clusters must be expressed using a Cluster object"
-            assert self.y is None or self.y.dim() == 2, \
-                "Clusters must hold label histograms"
+            assert isinstance(
+                self.sub, Cluster
+            ), "Clusters must be expressed using a Cluster object"
+            assert (
+                self.y is None or self.y.dim() == 2
+            ), "Clusters must hold label histograms"
         if self.is_sub:
             if not is_dense(self.super_index):
                 print(
@@ -207,7 +220,8 @@ class Data(PyGData):
                     "dense (ie all indices in [0, super_index.max()] are used),"
                     " which is not the case here. This may be because you are "
                     "creating a Data object after applying a selection of "
-                    "points without updating the cluster indices.")
+                    "points without updating the cluster indices."
+                )
         if self.has_edges:
             assert self.edge_index.max() < self.num_points
             assert 0 <= self.edge_index.min()
@@ -217,16 +231,22 @@ class Data(PyGData):
         '*face*' attributes to our 'super_index'. This is needed for
         maintaining clusters when batching Data objects together.
         """
-        return self.num_super if key in ['super_index'] \
+        return (
+            self.num_super
+            if key in ["super_index"]
             else super().__inc__(key, value, *args, **kwargs)
+        )
 
     def __cat_dim__(self, key, value, *args, **kwargs):
         """Extend the PyG.Data.__inc__ behavior on '*index*' and
         '*face*' attributes to our 'neighbor_index'. This is needed for
         maintaining neighbors when batching Data objects together.
         """
-        return 0 if key == 'neighbor_index' \
+        return (
+            0
+            if key == "neighbor_index"
             else super().__cat_dim__(key, value, *args, **kwargs)
+        )
 
     def select(self, idx, update_sub=True, update_super=True):
         """Returns a new Data with updated clusters, which indexes
@@ -278,9 +298,10 @@ class Data(PyGData):
 
         # Make sure idx contains no duplicate entries
         if src.is_debug_enabled():
-            assert not has_duplicates(idx), \
-                "Duplicate indices are not supported. This would cause " \
+            assert not has_duplicates(idx), (
+                "Duplicate indices are not supported. This would cause "
                 "ambiguities in edges and super- and sub- indices."
+            )
 
         # Output Data will not share memory with input Data.
         # NB: it is generally not recommended to instantiate en empty
@@ -300,9 +321,11 @@ class Data(PyGData):
             # 'reindex[edge_index]'. This avoids using map() or
             # numpy.vectorize alternatives.
             reindex = torch.full(
-                (self.num_nodes,), -1, dtype=torch.int64, device=device)
+                (self.num_nodes,), -1, dtype=torch.int64, device=device
+            )
             reindex = reindex.scatter_(
-                0, idx, torch.arange(idx.shape[0], device=device))
+                0, idx, torch.arange(idx.shape[0], device=device)
+            )
             edge_index = reindex[self.edge_index]
 
             # Remove obsolete edges (ie those involving a '-1' index)
@@ -338,14 +361,14 @@ class Data(PyGData):
             # also need to update the super-level's 'Data.sub', which
             # can be computed from 'super_index'
             super_sub = Cluster(
-                data.super_index, torch.arange(idx.shape[0], device=device),
-                dense=True)
+                data.super_index, torch.arange(idx.shape[0], device=device), dense=True
+            )
 
             out_super = (idx_super, super_sub)
 
         # Index data items depending on their type
-        warn_keys = ['neighbor_index', 'neighbor_distance']
-        skip_keys = ['edge_index', 'sub', 'super_index'] + warn_keys
+        warn_keys = ["neighbor_index", "neighbor_distance"]
+        skip_keys = ["edge_index", "sub", "super_index"] + warn_keys
         for key, item in self:
 
             # 'skip_keys' have already been dealt with earlier on, so we
@@ -353,7 +376,8 @@ class Data(PyGData):
             if key in warn_keys and src.is_debug_enabled():
                 print(
                     f"WARNING: Data.select does not support '{key}', this "
-                    f"attribute will be absent from the output")
+                    f"attribute will be absent from the output"
+                )
             if key in skip_keys:
                 continue
 
@@ -372,8 +396,12 @@ class Data(PyGData):
             if is_tensor and is_node_size and key in self.v_edge_keys:
                 data[key] = item[idx]
 
-            elif self.has_edges and is_tensor and is_edge_size and \
-                    key in ['edge_attr'] + self.edge_keys:
+            elif (
+                self.has_edges
+                and is_tensor
+                and is_edge_size
+                and key in ["edge_attr"] + self.edge_keys
+            ):
                 data[key] = item[idx_edge]
 
             # Slice other tensor elements containing num_nodes elements
@@ -396,8 +424,11 @@ class Data(PyGData):
         self.num_nodes indicating which are absent from self.edge_index.
         Will raise an error if self.has_edges is False.
         """
-        edge_index = self.edge_index if self.has_edges \
+        edge_index = (
+            self.edge_index
+            if self.has_edges
             else torch.zeros(2, 0, dtype=torch.long, device=self.device)
+        )
         return isolated_nodes(edge_index, num_nodes=self.num_nodes)
 
     def connect_isolated(self, k=1):
@@ -428,8 +459,7 @@ class Data(PyGData):
         high = self.pos.max(dim=0).values
         low = self.pos.min(dim=0).values
         r_max = (high - low).norm()
-        neighbors, distances = knn_2(
-            self.pos, self.pos[is_out], k + 1, r_max=r_max)
+        neighbors, distances = knn_2(self.pos, self.pos[is_out], k + 1, r_max=r_max)
         distances = distances[:, 1:]
         neighbors = neighbors[:, 1:]
 
@@ -462,9 +492,7 @@ class Data(PyGData):
             a, b = torch.linalg.lstsq(d_1, w).solution
         except:
             if src.is_debug_enabled():
-                print(
-                    '\nWarning: torch.linalg.lstsq failed, trying again '
-                    'on CPU')
+                print("\nWarning: torch.linalg.lstsq failed, trying again " "on CPU")
             a, b = torch.linalg.lstsq(d_1.cpu(), w.cpu()).solution
             a = a.to(self.device)
             b = b.to(self.device)
@@ -477,7 +505,7 @@ class Data(PyGData):
 
         return self
 
-    def to_trimmed(self, reduce='mean'):
+    def to_trimmed(self, reduce="mean"):
         """Convert to 'trimmed' graph: same as coalescing with the
         additional constraint that (i, j) and (j, i) edges are duplicates.
 
@@ -492,7 +520,8 @@ class Data(PyGData):
 
         if self.edge_attr is not None:
             edge_index, edge_attr = to_trimmed(
-                self.edge_index, edge_attr=self.edge_attr, reduce=reduce)
+                self.edge_index, edge_attr=self.edge_attr, reduce=reduce
+            )
         else:
             edge_index = to_trimmed(self.edge_index)
             edge_attr = None
@@ -505,37 +534,32 @@ class Data(PyGData):
     def __eq__(self, other):
         if not isinstance(other, self.__class__):
             if src.is_debug_enabled():
-                print(f'{self.__class__.__name__}.__eq__: classes differ')
+                print(f"{self.__class__.__name__}.__eq__: classes differ")
             return False
         if sorted(self.keys) != sorted(other.keys):
             if src.is_debug_enabled():
-                print(f'{self.__class__.__name__}.__eq__: keys differ')
+                print(f"{self.__class__.__name__}.__eq__: keys differ")
             return False
         for k, v in self.items():
             if isinstance(v, torch.Tensor):
                 if not torch.equal(v, other[k]):
                     if src.is_debug_enabled():
-                        print(f'{self.__class__.__name__}.__eq__: {k} differ')
+                        print(f"{self.__class__.__name__}.__eq__: {k} differ")
                     return False
                 continue
             if isinstance(v, np.ndarray):
                 if not np.array_equal(v, other[k]):
                     if src.is_debug_enabled():
-                        print(f'{self.__class__.__name__}.__eq__: {k} differ')
+                        print(f"{self.__class__.__name__}.__eq__: {k} differ")
                     return False
                 continue
             if v != other[k]:
                 if src.is_debug_enabled():
-                    print(f'{self.__class__.__name__}.__eq__: {k} differ')
+                    print(f"{self.__class__.__name__}.__eq__: {k} differ")
                 return False
         return True
 
-    def save(
-            self,
-            f,
-            y_to_csr=True,
-            pos_dtype=torch.float,
-            fp_dtype=torch.float):
+    def save(self, f, y_to_csr=True, pos_dtype=torch.float, fp_dtype=torch.float):
         """Save Data to HDF5 file.
 
         :param f: h5 file path of h5py.File or h5py.Group
@@ -553,26 +577,24 @@ class Data(PyGData):
         :return:
         """
         if not isinstance(f, (h5py.File, h5py.Group)):
-            with h5py.File(f, 'w') as file:
+            with h5py.File(f, "w") as file:
                 self.save(
-                    file,
-                    y_to_csr=y_to_csr,
-                    pos_dtype=pos_dtype,
-                    fp_dtype=fp_dtype)
+                    file, y_to_csr=y_to_csr, pos_dtype=pos_dtype, fp_dtype=fp_dtype
+                )
             return
 
         assert isinstance(f, (h5py.File, h5py.Group))
 
         for k, val in self.items():
-            if k == 'pos':
+            if k == "pos":
                 save_tensor(val, f, k, fp_dtype=pos_dtype)
-            elif k == 'y' and val.dim() > 1 and y_to_csr:
+            elif k == "y" and val.dim() > 1 and y_to_csr:
                 sg = f.create_group(f"{f.name}/_csr_/{k}")
                 save_dense_to_csr(val, sg, fp_dtype=fp_dtype)
             elif isinstance(val, Cluster):
                 sg = f.create_group(f"{f.name}/_cluster_/sub")
                 val.save(sg, fp_dtype=fp_dtype)
-            elif k in ['rgb', 'mean_rgb']:
+            elif k in ["rgb", "mean_rgb"]:
                 if val.is_floating_point():
                     save_tensor((val * 255).byte(), f, k, fp_dtype=fp_dtype)
                 else:
@@ -580,12 +602,18 @@ class Data(PyGData):
             elif isinstance(val, torch.Tensor):
                 save_tensor(val, f, k, fp_dtype=fp_dtype)
             else:
-                raise NotImplementedError(f'Unsupported type={type(val)}')
+                raise NotImplementedError(f"Unsupported type={type(val)}")
 
     @staticmethod
     def load(
-            f, idx=None, keys_idx=None, keys=None, update_sub=True,
-            verbose=False, rgb_to_float=False):
+        f,
+        idx=None,
+        keys_idx=None,
+        keys=None,
+        update_sub=True,
+        verbose=False,
+        rgb_to_float=False,
+    ):
         """Read an HDF5 file and return its content as a dictionary.
 
         :param f: h5 file path of h5py.File or h5py.Group
@@ -609,11 +637,16 @@ class Data(PyGData):
         :return:
         """
         if not isinstance(f, (h5py.File, h5py.Group)):
-            with h5py.File(f, 'r') as file:
+            with h5py.File(f, "r") as file:
                 out = Data.load(
-                    file, idx=idx, keys_idx=keys_idx, keys=keys,
-                    update_sub=update_sub, verbose=verbose,
-                    rgb_to_float=rgb_to_float)
+                    file,
+                    idx=idx,
+                    keys_idx=keys_idx,
+                    keys=keys,
+                    update_sub=update_sub,
+                    verbose=verbose,
+                    rgb_to_float=rgb_to_float,
+                )
             return out
 
         idx = tensor_idx(idx)
@@ -623,7 +656,7 @@ class Data(PyGData):
             keys_idx = list(set(f.keys()) - set(Data._NOT_INDEXABLE))
         if keys is None:
             all_keys = list(f.keys())
-            for k in ['_csr_', '_cluster_']:
+            for k in ["_csr_", "_cluster_"]:
                 if k in all_keys:
                     all_keys.remove(k)
                     all_keys += list(f[k].keys())
@@ -636,10 +669,10 @@ class Data(PyGData):
         # Deal with special keys first, then read other keys if required
         for k in f.keys():
             start = time()
-            if k == '_csr_':
+            if k == "_csr_":
                 csr_keys = list(f[k].keys())
                 continue
-            if k == '_cluster_':
+            if k == "_cluster_":
                 cluster_keys = list(f[k].keys())
                 continue
             if k in keys_idx:
@@ -647,7 +680,7 @@ class Data(PyGData):
             elif k in keys:
                 d_dict[k] = load_tensor(f[k])
             if verbose and k in d_dict.keys():
-                print(f'Data.load {k:<22}: {time() - start:0.5f}s')
+                print(f"Data.load {k:<22}: {time() - start:0.5f}s")
 
         # Update the 'keys_idx' with newly-found 'csr_keys' and
         # 'cluster_keys'
@@ -659,33 +692,33 @@ class Data(PyGData):
         for k in csr_keys:
             start = time()
             if k in keys_idx:
-                d_dict[k] = load_csr_to_dense(
-                    f['_csr_'][k], idx=idx, verbose=verbose)
+                d_dict[k] = load_csr_to_dense(f["_csr_"][k], idx=idx, verbose=verbose)
             elif k in keys:
-                d_dict[k] = load_csr_to_dense(f['_csr_'][k], verbose=verbose)
+                d_dict[k] = load_csr_to_dense(f["_csr_"][k], verbose=verbose)
             if verbose and k in d_dict.keys():
-                print(f'Data.load {k:<22}: {time() - start:0.5f}s')
+                print(f"Data.load {k:<22}: {time() - start:0.5f}s")
 
         # Special key '_cluster_' holds Cluster data
         for k in cluster_keys:
             start = time()
             if k in keys_idx:
                 d_dict[k] = Cluster.load(
-                    f['_cluster_'][k], idx=idx, update_sub=update_sub,
-                    verbose=verbose)[0]
+                    f["_cluster_"][k], idx=idx, update_sub=update_sub, verbose=verbose
+                )[0]
             elif k in keys:
                 d_dict[k] = Cluster.load(
-                    f['_cluster_'][k], update_sub=update_sub,
-                    verbose=verbose)[0]
+                    f["_cluster_"][k], update_sub=update_sub, verbose=verbose
+                )[0]
             if verbose and k in d_dict.keys():
-                print(f'Data.load {k:<22}: {time() - start:0.5f}s')
+                print(f"Data.load {k:<22}: {time() - start:0.5f}s")
 
         # In case RGB is among the keys and is in integer type, convert
         # to float
-        for k in ['rgb', 'mean_rgb']:
+        for k in ["rgb", "mean_rgb"]:
             if k in d_dict.keys():
-                d_dict[k] = to_float_rgb(d_dict[k]) if rgb_to_float \
-                    else to_byte_rgb(d_dict[k])
+                d_dict[k] = (
+                    to_float_rgb(d_dict[k]) if rgb_to_float else to_byte_rgb(d_dict[k])
+                )
 
         return Data(**d_dict)
 
@@ -711,10 +744,8 @@ class Batch(PyGBatch):
 
             # Little trick to prevent Batch.from_data_list from crashing
             # when some Data objects have edges while others don't
-            has = [
-                i for i, d in enumerate(data_list) if d.edge_index is not None]
-            has_not = [
-                i for i, d in enumerate(data_list) if d.edge_index is None]
+            has = [i for i, d in enumerate(data_list) if d.edge_index is not None]
+            has_not = [i for i, d in enumerate(data_list) if d.edge_index is None]
 
             if len(has) > 0 and len(has_not) > 0:
                 device = data_list[0].device
@@ -733,7 +764,8 @@ class Batch(PyGBatch):
             # PyG way of batching does not recognize some local classes such
             # as Cluster and CSRData, so it will accumulate them in lists
             batch = super().from_data_list(
-                data_list, follow_batch=follow_batch, exclude_keys=exclude_keys)
+                data_list, follow_batch=follow_batch, exclude_keys=exclude_keys
+            )
 
         # Dirty trick: manually convert 'sub' to a proper ClusterBatch.
         # Note we will need to do the same in `get_example` to avoid

@@ -9,8 +9,12 @@ from src.datasets import BaseDataset
 from src.data import Data, Batch
 from src.datasets.s3dis_config import *
 from torch_geometric.data import extract_zip
-from src.utils import available_cpu_count, starmap_with_kwargs, \
-    rodrigues_rotation_matrix, to_float_rgb
+from src.utils import (
+    available_cpu_count,
+    starmap_with_kwargs,
+    rodrigues_rotation_matrix,
+    to_float_rgb,
+)
 from src.transforms import RoomPosition
 
 
@@ -18,16 +22,26 @@ DIR = osp.dirname(osp.realpath(__file__))
 log = logging.getLogger(__name__)
 
 
-__all__ = ['S3DIS', 'MiniS3DIS']
+__all__ = ["S3DIS", "MiniS3DIS"]
 
 
 ########################################################################
 #                                 Utils                                #
 ########################################################################
 
+
 def read_s3dis_area(
-        area_dir, xyz=True, rgb=True, semantic=True, instance=False,
-        xyz_room=False, align=False, is_val=True, verbose=False, processes=-1):
+    area_dir,
+    xyz=True,
+    rgb=True,
+    semantic=True,
+    instance=False,
+    xyz_room=False,
+    align=False,
+    is_val=True,
+    verbose=False,
+    processes=-1,
+):
     """Read all S3DIS object-wise annotations in a given Area directory.
     All room-wise data are accumulated into a single cloud.
 
@@ -62,30 +76,48 @@ def read_s3dis_area(
     """
     # List the object-wise annotation files in the room
     room_directories = sorted(
-        [x for x in glob.glob(osp.join(area_dir, '*')) if osp.isdir(x)])
+        [x for x in glob.glob(osp.join(area_dir, "*")) if osp.isdir(x)]
+    )
 
     # Read all rooms in the Area and concatenate point clouds in a Batch
     processes = available_cpu_count() if processes < 1 else processes
     args_iter = [[r] for r in room_directories]
     kwargs_iter = {
-        'xyz': xyz, 'rgb': rgb, 'semantic': semantic, 'instance': instance,
-        'xyz_room': xyz_room, 'align': align, 'is_val': is_val,
-        'verbose': verbose}
-    batch = Batch.from_data_list(starmap_with_kwargs(
-        read_s3dis_room, args_iter, kwargs_iter, processes=processes))
+        "xyz": xyz,
+        "rgb": rgb,
+        "semantic": semantic,
+        "instance": instance,
+        "xyz_room": xyz_room,
+        "align": align,
+        "is_val": is_val,
+        "verbose": verbose,
+    }
+    batch = Batch.from_data_list(
+        starmap_with_kwargs(
+            read_s3dis_room, args_iter, kwargs_iter, processes=processes
+        )
+    )
 
     # Convert from Batch to Data
     data_dict = batch.to_dict()
-    del data_dict['batch']
-    del data_dict['ptr']
+    del data_dict["batch"]
+    del data_dict["ptr"]
     data = Data(**data_dict)
 
     return data
 
 
 def read_s3dis_room(
-        room_dir, xyz=True, rgb=True, semantic=True, instance=False,
-        xyz_room=False, align=False, is_val=True, verbose=False):
+    room_dir,
+    xyz=True,
+    rgb=True,
+    semantic=True,
+    instance=False,
+    xyz_room=False,
+    align=False,
+    is_val=True,
+    verbose=False,
+):
     """Read all S3DIS object-wise annotations in a given room directory.
 
     :param room_dir: str
@@ -125,7 +157,7 @@ def read_s3dis_room(
     o_list = [] if instance else None
 
     # List the object-wise annotation files in the room
-    objects = sorted(glob.glob(osp.join(room_dir, 'Annotations', '*.txt')))
+    objects = sorted(glob.glob(osp.join(room_dir, "Annotations", "*.txt")))
     for i_object, path in enumerate(objects):
         object_name = osp.splitext(osp.basename(path))[0]
         if verbose:
@@ -133,37 +165,36 @@ def read_s3dis_room(
 
         # Remove the trailing number in the object name to isolate the
         # object class (eg 'chair_24' -> 'chair')
-        object_class = object_name.split('_')[0]
+        object_class = object_name.split("_")[0]
 
         # Convert object class string to int label. Note that by default
         # if an unknown class is read, it will be treated as 'clutter'.
         # This is necessary because an unknown 'staris' class can be
         # found in some rooms
-        label = OBJECT_LABEL.get(object_class, OBJECT_LABEL['clutter'])
-        points = pd.read_csv(path, sep=' ', header=None).values
+        label = OBJECT_LABEL.get(object_class, OBJECT_LABEL["clutter"])
+        points = pd.read_csv(path, sep=" ", header=None).values
 
         if xyz:
-            xyz_list.append(
-                np.ascontiguousarray(points[:, 0:3], dtype='float32'))
+            xyz_list.append(np.ascontiguousarray(points[:, 0:3], dtype="float32"))
 
         if rgb:
             try:
-                rgb_list.append(
-                    np.ascontiguousarray(points[:, 3:6], dtype='uint8'))
+                rgb_list.append(np.ascontiguousarray(points[:, 3:6], dtype="uint8"))
             except ValueError:
-                rgb_list.append(np.zeros((points.shape[0], 3), dtype='uint8'))
+                rgb_list.append(np.zeros((points.shape[0], 3), dtype="uint8"))
                 log.warning(f"WARN - corrupted rgb data for file {path}")
 
         if semantic:
-            y_list.append(np.full(points.shape[0], label, dtype='int64'))
+            y_list.append(np.full(points.shape[0], label, dtype="int64"))
 
         if instance:
-            o_list.append(np.full(points.shape[0], i_object, dtype='int64'))
+            o_list.append(np.full(points.shape[0], i_object, dtype="int64"))
 
     # Concatenate and convert to torch
     xyz_data = torch.from_numpy(np.concatenate(xyz_list, 0)) if xyz else None
-    rgb_data = to_float_rgb(torch.from_numpy(np.concatenate(rgb_list, 0))) \
-        if rgb else None
+    rgb_data = (
+        to_float_rgb(torch.from_numpy(np.concatenate(rgb_list, 0))) if rgb else None
+    )
     y_data = torch.from_numpy(np.concatenate(y_list, 0)) if semantic else None
     o_data = torch.from_numpy(np.concatenate(o_list, 0)) if instance else None
 
@@ -173,7 +204,8 @@ def read_s3dis_room(
     # Add is_val attribute if need be
     if is_val:
         data.is_val = torch.ones(data.num_nodes, dtype=torch.bool) * (
-                osp.basename(room_dir) in VALIDATION_ROOMS)
+            osp.basename(room_dir) in VALIDATION_ROOMS
+        )
 
     # Exit here if canonical orientations are not needed
     if not xyz_room and not align:
@@ -182,7 +214,8 @@ def read_s3dis_room(
     if instance:
         raise NotImplementedError(
             "If you are using bbox for detection, need to implement bbox "
-            "alignment here first...")
+            "alignment here first..."
+        )
 
     # Recover the canonical rotation angle for the room at hand. NB:
     # this assumes the raw files are stored in the S3DIS structure:
@@ -194,9 +227,8 @@ def read_s3dis_room(
     area_dir = osp.dirname(room_dir)
     area = osp.basename(osp.dirname(room_dir))
     room_name = osp.basename(room_dir)
-    alignment_file = osp.join(area_dir, f'{area}_alignmentAngle.txt')
-    alignments = pd.read_csv(
-        alignment_file, sep=' ', header=None, skiprows=2).values
+    alignment_file = osp.join(area_dir, f"{area}_alignmentAngle.txt")
+    alignments = pd.read_csv(alignment_file, sep=" ", header=None, skiprows=2).values
     angle = float(alignments[np.where(alignments[:, 0] == room_name), 1])
 
     # Matrix to rotate the room to its canonical orientation
@@ -218,6 +250,7 @@ def read_s3dis_room(
 ########################################################################
 #                               S3DIS                               #
 ########################################################################
+
 
 class S3DIS(BaseDataset):
     """S3DIS dataset, for Area-wise prediction.
@@ -284,13 +317,13 @@ class S3DIS(BaseDataset):
             `{'train': [...], 'val': [...], 'test': [...]}`
         """
         return {
-            'train': [f'Area_{i}' for i in range(1, 7) if i != self.fold],
-            'val': [f'Area_{i}' for i in range(1, 7) if i != self.fold],
-            'test': [f'Area_{self.fold}']}
+            "train": [f"Area_{i}" for i in range(1, 7) if i != self.fold],
+            "val": [f"Area_{i}" for i in range(1, 7) if i != self.fold],
+            "test": [f"Area_{self.fold}"],
+        }
 
     def download_dataset(self):
-        """Download the S3DIS dataset.
-        """
+        """Download the S3DIS dataset."""
         # Manually download the dataset
         if not osp.exists(osp.join(self.root, self._zip_name)):
             log.error(
@@ -306,7 +339,8 @@ class S3DIS(BaseDataset):
                 f"⛔ Make sure you DO NOT download the "
                 f"'{self._aligned_zip_name}' version, which does not contain "
                 f"the required `Area_{{i_area:1>6}}_alignmentAngle.txt` files."
-                f"\n")
+                f"\n"
+            )
             sys.exit(1)
 
         # Unzip the file and rename it into the `root/raw/` directory. This
@@ -320,8 +354,16 @@ class S3DIS(BaseDataset):
         be passed to `self.pre_transform`.
         """
         return read_s3dis_area(
-            raw_cloud_path, xyz=True, rgb=True, semantic=True, instance=False,
-            xyz_room=True, align=False, is_val=True, verbose=False)
+            raw_cloud_path,
+            xyz=True,
+            rgb=True,
+            semantic=True,
+            instance=False,
+            xyz_room=True,
+            align=False,
+            is_val=True,
+            verbose=False,
+        )
 
     @property
     def raw_file_structure(self):
@@ -338,8 +380,7 @@ class S3DIS(BaseDataset):
     def raw_file_names(self):
         """The file paths to find in order to skip the download."""
         area_folders = super().raw_file_names
-        alignment_files = [
-            osp.join(a, f"{a}_alignmentAngle.txt") for a in area_folders]
+        alignment_files = [osp.join(a, f"{a}_alignmentAngle.txt") for a in area_folders]
         return area_folders + alignment_files
 
     def id_to_relative_raw_path(self, id):
@@ -354,15 +395,17 @@ class S3DIS(BaseDataset):
 #                              MiniS3DIS                               #
 ########################################################################
 
+
 class MiniS3DIS(S3DIS):
     """A mini version of S3DIS with only 2 areas per stage for
     experimentation.
     """
+
     _NUM_MINI = 1
 
     @property
     def all_cloud_ids(self):
-        return {k: v[:self._NUM_MINI] for k, v in super().all_cloud_ids.items()}
+        return {k: v[: self._NUM_MINI] for k, v in super().all_cloud_ids.items()}
 
     @property
     def data_subdir_name(self):

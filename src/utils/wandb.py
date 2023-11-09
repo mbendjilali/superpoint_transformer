@@ -2,7 +2,7 @@ import wandb
 import torch
 
 
-__all__ = ['wandb_confusion_matrix']
+__all__ = ["wandb_confusion_matrix"]
 
 
 def wandb_confusion_matrix(cm, class_names=None, title=None):
@@ -42,4 +42,5 @@ def wandb_confusion_matrix(cm, class_names=None, title=None):
         "wandb/confusion_matrix/v1",
         wandb.Table(columns=columns, data=data),
         {x: x for x in columns},
-        {"title": title or ""})
+        {"title": title or ""},
+    )

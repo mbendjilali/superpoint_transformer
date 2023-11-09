@@ -6,7 +6,7 @@ from src.nn.unpool import *
 from src.nn.fusion import CatFusion, fusion_factory
 
 
-__all__ = ['Stage', 'DownNFuseStage', 'UpNFuseStage', 'PointStage']
+__all__ = ["Stage", "DownNFuseStage", "UpNFuseStage", "PointStage"]
 
 
 class Stage(nn.Module):
@@ -59,28 +59,29 @@ class Stage(nn.Module):
     """
 
     def __init__(
-            self,
-            dim,
-            num_blocks=1,
-            num_heads=1,
-            in_mlp=None,
-            out_mlp=None,
-            mlp_activation=nn.LeakyReLU(),
-            mlp_norm=BatchNorm,
-            mlp_drop=None,
-            use_pos=True,
-            use_diameter=False,
-            use_diameter_parent=False,
-            qk_dim=8,
-            k_rpe=False,
-            q_rpe=False,
-            k_delta_rpe=False,
-            q_delta_rpe=False,
-            qk_share_rpe=False,
-            q_on_minus_rpe=False,
-            blocks_share_rpe=False,
-            heads_share_rpe=False,
-            **transformer_kwargs):
+        self,
+        dim,
+        num_blocks=1,
+        num_heads=1,
+        in_mlp=None,
+        out_mlp=None,
+        mlp_activation=nn.LeakyReLU(),
+        mlp_norm=BatchNorm,
+        mlp_drop=None,
+        use_pos=True,
+        use_diameter=False,
+        use_diameter_parent=False,
+        qk_dim=8,
+        k_rpe=False,
+        q_rpe=False,
+        k_delta_rpe=False,
+        q_delta_rpe=False,
+        qk_share_rpe=False,
+        q_on_minus_rpe=False,
+        blocks_share_rpe=False,
+        heads_share_rpe=False,
+        **transformer_kwargs,
+    ):
 
         super().__init__()
 
@@ -92,10 +93,8 @@ class Stage(nn.Module):
         if in_mlp is not None:
             assert in_mlp[-1] == dim
             self.in_mlp = MLP(
-                in_mlp,
-                activation=mlp_activation,
-                norm=mlp_norm,
-                drop=mlp_drop)
+                in_mlp, activation=mlp_activation, norm=mlp_norm, drop=mlp_drop
+            )
         else:
             self.in_mlp = None
 
@@ -103,10 +102,8 @@ class Stage(nn.Module):
         if out_mlp is not None:
             assert out_mlp[0] == dim
             self.out_mlp = MLP(
-                out_mlp,
-                activation=mlp_activation,
-                norm=mlp_norm,
-                drop=mlp_drop)
+                out_mlp, activation=mlp_activation, norm=mlp_norm, drop=mlp_drop
+            )
         else:
             self.out_mlp = None
 
@@ -115,23 +112,46 @@ class Stage(nn.Module):
 
             # Build the RPE encoders here if shared across all blocks
             k_rpe_blocks = _build_shared_rpe_encoders(
-                k_rpe, num_blocks, num_heads, 18, qk_dim, blocks_share_rpe,
-                heads_share_rpe)
+                k_rpe,
+                num_blocks,
+                num_heads,
+                18,
+                qk_dim,
+                blocks_share_rpe,
+                heads_share_rpe,
+            )
 
             k_delta_rpe_blocks = _build_shared_rpe_encoders(
-                k_delta_rpe, num_blocks, num_heads, dim, qk_dim, blocks_share_rpe,
-                heads_share_rpe)
+                k_delta_rpe,
+                num_blocks,
+                num_heads,
+                dim,
+                qk_dim,
+                blocks_share_rpe,
+                heads_share_rpe,
+            )
 
             # If key and query RPEs share the same MLP, only the key MLP
             # is preserved, to limit the number of model parameters
             q_rpe_blocks = _build_shared_rpe_encoders(
-                q_rpe and not (k_rpe and qk_share_rpe), num_blocks, num_heads,
-                18, qk_dim, blocks_share_rpe, heads_share_rpe)
+                q_rpe and not (k_rpe and qk_share_rpe),
+                num_blocks,
+                num_heads,
+                18,
+                qk_dim,
+                blocks_share_rpe,
+                heads_share_rpe,
+            )
 
             q_delta_rpe_blocks = _build_shared_rpe_encoders(
                 q_delta_rpe and not (k_delta_rpe and qk_share_rpe),
-                num_blocks, num_heads, dim, qk_dim, blocks_share_rpe,
-                heads_share_rpe)
+                num_blocks,
+                num_heads,
+                dim,
+                qk_dim,
+                blocks_share_rpe,
+                heads_share_rpe,
+            )
 
             self.transformer_blocks = nn.ModuleList(
                 TransformerBlock(
@@ -145,9 +165,12 @@ class Stage(nn.Module):
                     qk_share_rpe=qk_share_rpe,
                     q_on_minus_rpe=q_on_minus_rpe,
                     heads_share_rpe=heads_share_rpe,
-                    **transformer_kwargs)
-                for k_rpe_block, q_rpe_block, k_delta_rpe_block, q_delta_rpe_block
-                in zip(k_rpe_blocks, q_rpe_blocks, k_delta_rpe_blocks, q_delta_rpe_blocks))
+                    **transformer_kwargs,
+                )
+                for k_rpe_block, q_rpe_block, k_delta_rpe_block, q_delta_rpe_block in zip(
+                    k_rpe_blocks, q_rpe_blocks, k_delta_rpe_blocks, q_delta_rpe_blocks
+                )
+            )
         else:
             self.transformer_blocks = None
 
@@ -174,15 +197,16 @@ class Stage(nn.Module):
         return self.dim
 
     def forward(
-            self,
-            x,
-            norm_index,
-            pos=None,
-            diameter=None,
-            node_size=None,
-            super_index=None,
-            edge_index=None,
-            edge_attr=None):
+        self,
+        x,
+        norm_index,
+        pos=None,
+        diameter=None,
+        node_size=None,
+        super_index=None,
+        edge_index=None,
+        edge_attr=None,
+    ):
 
         # Recover info from the input
         if x is not None:
@@ -215,8 +239,11 @@ class Stage(nn.Module):
         # Inject the parent segment diameter to the node features if
         # need be
         if self.use_diameter:
-            diam = diameter if diameter is not None else \
-                torch.zeros((N, 1), dtype=dtype, device=device)
+            diam = (
+                diameter
+                if diameter is not None
+                else torch.zeros((N, 1), dtype=dtype, device=device)
+            )
             x = self.feature_fusion(diam, x)
 
         if self.use_diameter_parent:
@@ -236,7 +263,8 @@ class Stage(nn.Module):
         if self.transformer_blocks is not None:
             for block in self.transformer_blocks:
                 x, norm_index, edge_index = block(
-                    x, norm_index, edge_index=edge_index, edge_attr=edge_attr)
+                    x, norm_index, edge_index=edge_index, edge_attr=edge_attr
+                )
 
         # MLP on output features to change channel size
         if self.out_mlp is not None:
@@ -246,7 +274,8 @@ class Stage(nn.Module):
 
 
 def _build_shared_rpe_encoders(
-        rpe, num_blocks, num_heads, in_dim, out_dim, blocks_share, heads_share):
+    rpe, num_blocks, num_heads, in_dim, out_dim, blocks_share, heads_share
+):
     """Local helper to build RPE encoders for Stage. The main goal is to
     make shared encoders construction easier.
 
@@ -257,10 +286,11 @@ def _build_shared_rpe_encoders(
     rely on different RPE encoders.
     """
     if not isinstance(rpe, bool):
-        assert blocks_share, \
-            "If anything else but a boolean is passed for the RPE encoder, " \
-            "this value will be passed to all blocks and blocks_share should " \
+        assert blocks_share, (
+            "If anything else but a boolean is passed for the RPE encoder, "
+            "this value will be passed to all blocks and blocks_share should "
             "be set to True."
+        )
         return [rpe] * num_blocks
 
     if not heads_share:
@@ -283,7 +313,7 @@ class DownNFuseStage(Stage):
         x2 -- Pool --
     """
 
-    def __init__(self, *args, pool='max', fusion='cat', **kwargs):
+    def __init__(self, *args, pool="max", fusion="cat", **kwargs):
         super().__init__(*args, **kwargs)
 
         # Pooling operator
@@ -296,24 +326,25 @@ class DownNFuseStage(Stage):
         self.fusion = fusion_factory(fusion)
 
     def forward(
-            self,
-            x_parent,
-            x_child,
-            norm_index,
-            pool_index,
-            pos=None,
-            diameter=None,
-            node_size=None,
-            super_index=None,
-            edge_index=None,
-            edge_attr=None,
-            v_edge_attr=None,
-            num_super=None):
+        self,
+        x_parent,
+        x_child,
+        norm_index,
+        pool_index,
+        pos=None,
+        diameter=None,
+        node_size=None,
+        super_index=None,
+        edge_index=None,
+        edge_attr=None,
+        v_edge_attr=None,
+        num_super=None,
+    ):
 
         # Pool the children features
         x_pooled = self.down_pool_block(
-            x_child, x_parent, pool_index, edge_attr=v_edge_attr,
-            num_pool=num_super)
+            x_child, x_parent, pool_index, edge_attr=v_edge_attr, num_pool=num_super
+        )
 
         # Fuse parent and pooled child features
         x_fused = self.fusion(x_parent, x_pooled)
@@ -326,7 +357,8 @@ class DownNFuseStage(Stage):
             node_size=node_size,
             super_index=super_index,
             edge_index=edge_index,
-            edge_attr=edge_attr)
+            edge_attr=edge_attr,
+        )
 
 
 class UpNFuseStage(Stage):
@@ -342,30 +374,31 @@ class UpNFuseStage(Stage):
     The UpNFuseStage is typically used in a UNet-like decoder.
     """
 
-    def __init__(self, *args, unpool='index', fusion='cat', **kwargs):
+    def __init__(self, *args, unpool="index", fusion="cat", **kwargs):
         super().__init__(*args, **kwargs)
 
         # Unpooling operator
-        if unpool == 'index':
+        if unpool == "index":
             self.unpool = IndexUnpool()
         else:
-            raise NotImplementedError(f'Unknown unpool={unpool} mode')
+            raise NotImplementedError(f"Unknown unpool={unpool} mode")
 
         # Fusion operator
         self.fusion = fusion_factory(fusion)
 
     def forward(
-            self,
-            x_child,
-            x_parent,
-            norm_index,
-            unpool_index,
-            pos=None,
-            diameter=None,
-            node_size=None,
-            super_index=None,
-            edge_index=None,
-            edge_attr=None):
+        self,
+        x_child,
+        x_parent,
+        norm_index,
+        unpool_index,
+        pos=None,
+        diameter=None,
+        node_size=None,
+        super_index=None,
+        edge_index=None,
+        edge_attr=None,
+    ):
         # Unpool the parent features
         x_unpool = self.unpool(x_parent, unpool_index)
 
@@ -380,7 +413,8 @@ class UpNFuseStage(Stage):
             node_size=node_size,
             super_index=super_index,
             edge_index=edge_index,
-            edge_attr=edge_attr)
+            edge_attr=edge_attr,
+        )
 
 
 class PointStage(Stage):
@@ -411,16 +445,16 @@ class PointStage(Stage):
     """
 
     def __init__(
-            self,
-            in_mlp,
-            mlp_activation=nn.LeakyReLU(),
-            mlp_norm=BatchNorm,
-            mlp_drop=None,
-            use_pos=True,
-            use_diameter_parent=False):
+        self,
+        in_mlp,
+        mlp_activation=nn.LeakyReLU(),
+        mlp_norm=BatchNorm,
+        mlp_drop=None,
+        use_pos=True,
+        use_diameter_parent=False,
+    ):
 
-        assert len(in_mlp) > 1, \
-            'in_mlp should be a list of channels of length >= 2'
+        assert len(in_mlp) > 1, "in_mlp should be a list of channels of length >= 2"
 
         super().__init__(
             in_mlp[-1],
@@ -432,4 +466,5 @@ class PointStage(Stage):
             mlp_drop=mlp_drop,
             use_pos=use_pos,
             use_diameter=False,
-            use_diameter_parent=use_diameter_parent)
+            use_diameter_parent=use_diameter_parent,
+        )

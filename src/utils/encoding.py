@@ -1,7 +1,7 @@
 import torch
 
 
-__all__ = ['fourier_position_encoder']
+__all__ = ["fourier_position_encoder"]
 
 
 def fourier_position_encoder(pos, dim, f_min=1e-1, f_max=1e1):

@@ -2,7 +2,7 @@ import torch
 from torch_scatter import scatter_add
 
 
-__all__ = ['histogram_to_atomic', 'atomic_to_histogram']
+__all__ = ["histogram_to_atomic", "atomic_to_histogram"]
 
 
 def histogram_to_atomic(gt, pred):
@@ -26,9 +26,11 @@ def histogram_to_atomic(gt, pred):
     device = pred.device
 
     # Flatten the pointwise ground truth
-    point_gt = torch.arange(
-        num_classes, device=device).repeat(num_nodes).repeat_interleave(
-        gt.flatten())
+    point_gt = (
+        torch.arange(num_classes, device=device)
+        .repeat(num_nodes)
+        .repeat_interleave(gt.flatten())
+    )
 
     # Expand the pointwise ground truth
     point_pred = pred.repeat_interleave(gt.sum(dim=1), dim=0)
@@ -43,13 +45,15 @@ def atomic_to_histogram(item, idx, n_bins=None):
     :param item: 1D or 2D torch.Tensor
     :param idx: 1D torch.Tensor
     """
-    assert item.ge(0).all(), \
-        "Mean aggregation only supports positive integers"
-    assert item.dtype in [torch.uint8, torch.int, torch.long], \
-        "Mean aggregation only supports positive integers"
-    assert item.ndim <= 2, \
-        "Voting and histograms are only supported for 1D and " \
-        "2D tensors"
+    assert item.ge(0).all(), "Mean aggregation only supports positive integers"
+    assert item.dtype in [
+        torch.uint8,
+        torch.int,
+        torch.long,
+    ], "Mean aggregation only supports positive integers"
+    assert item.ndim <= 2, (
+        "Voting and histograms are only supported for 1D and " "2D tensors"
+    )
 
     # Initialization
     n_bins = item.max() + 1 if n_bins is None else n_bins
@@ -76,14 +80,11 @@ def atomic_to_histogram(item, idx, n_bins=None):
 
     # Prepend 0 columns to the histogram for bins removed due to
     # offsetting
-    bins_before = torch.zeros(
-        N, offset, device=device, dtype=torch.long)
+    bins_before = torch.zeros(N, offset, device=device, dtype=torch.long)
     hist = torch.cat((bins_before, hist), dim=1)
 
     # Append columns to the histogram for unobserved classes/bins
-    bins_after = torch.zeros(
-        N, n_bins - hist.shape[1], device=device,
-        dtype=torch.long)
+    bins_after = torch.zeros(N, n_bins - hist.shape[1], device=device, dtype=torch.long)
     hist = torch.cat((hist, bins_after), dim=1)
 
     # Restore input dtype

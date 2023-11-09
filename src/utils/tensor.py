@@ -4,19 +4,31 @@ from numba import njit
 
 
 __all__ = [
-    'tensor_idx', 'is_sorted', 'has_duplicates', 'is_dense', 'is_permutation',
-    'arange_interleave', 'print_tensor_info', 'cast_to_optimal_integer_type',
-    'cast_numpyfy', 'numpyfy', 'torchify', 'torch_to_numpy', 'fast_randperm',
-    'fast_zeros', 'fast_repeat', 'string_to_dtype']
+    "tensor_idx",
+    "is_sorted",
+    "has_duplicates",
+    "is_dense",
+    "is_permutation",
+    "arange_interleave",
+    "print_tensor_info",
+    "cast_to_optimal_integer_type",
+    "cast_numpyfy",
+    "numpyfy",
+    "torchify",
+    "torch_to_numpy",
+    "fast_randperm",
+    "fast_zeros",
+    "fast_repeat",
+    "string_to_dtype",
+]
 
 
 def tensor_idx(idx, device=None):
-    """Convert an int, slice, list or numpy index to a torch.LongTensor.
-    """
-    if device is None and hasattr(idx, 'device'):
+    """Convert an int, slice, list or numpy index to a torch.LongTensor."""
+    if device is None and hasattr(idx, "device"):
         device = idx.device
     elif device is None:
-        device = 'cpu'
+        device = "cpu"
 
     if idx is None:
         idx = torch.tensor([], device=device, dtype=torch.long)
@@ -34,8 +46,7 @@ def tensor_idx(idx, device=None):
     if isinstance(idx, torch.BoolTensor):
         idx = torch.where(idx)[0]
 
-    assert idx.dtype is torch.int64, \
-        f"Expected LongTensor but got {idx.dtype} instead."
+    assert idx.dtype is torch.int64, f"Expected LongTensor but got {idx.dtype} instead."
     # assert idx.shape[0] > 0, \
     #     "Expected non-empty indices. At least one index must be provided."
 
@@ -85,17 +96,17 @@ def is_permutation(a: torch.LongTensor):
 
 def arange_interleave(width, start=None):
     """Vectorized equivalent of:
-        >>> torch.cat([torch.arange(s, s + w) for w, s in zip(width, start)])
+    >>> torch.cat([torch.arange(s, s + w) for w, s in zip(width, start)])
     """
-    assert width.dim() == 1, 'Only supports 1D tensors'
-    assert isinstance(width, torch.Tensor), 'Only supports Tensors'
-    assert not width.is_floating_point(), 'Only supports Tensors of integers'
-    assert width.ge(0).all(), 'Only supports positive integers'
+    assert width.dim() == 1, "Only supports 1D tensors"
+    assert isinstance(width, torch.Tensor), "Only supports Tensors"
+    assert not width.is_floating_point(), "Only supports Tensors of integers"
+    assert width.ge(0).all(), "Only supports positive integers"
     start = start if start is not None else torch.zeros_like(width)
     assert width.shape == start.shape
-    assert start.dim() == 1, 'Only supports 1D tensors'
-    assert isinstance(start, torch.Tensor), 'Only supports Tensors'
-    assert not start.is_floating_point(), 'Only supports Tensors of integers'
+    assert start.dim() == 1, "Only supports 1D tensors"
+    assert isinstance(start, torch.Tensor), "Only supports Tensors"
+    assert not start.is_floating_point(), "Only supports Tensors of integers"
     width = width.long()
     start = start.long()
     device = width.device
@@ -105,23 +116,22 @@ def arange_interleave(width, start=None):
 
 
 def print_tensor_info(a, name=None):
-    """Print some info about a tensor. Used for debugging.
-    """
+    """Print some info about a tensor. Used for debugging."""
     is_1d = a.dim() == 1
     is_int = not a.is_floating_point()
 
-    msg = f'{name}:  ' if name is not None else ''
+    msg = f"{name}:  " if name is not None else ""
 
-    msg += f'shape={a.shape}  '
-    msg += f'dtype={a.dtype}  '
-    msg += f'min={a.min()}  '
-    msg += f'max={a.max()}  '
+    msg += f"shape={a.shape}  "
+    msg += f"dtype={a.dtype}  "
+    msg += f"min={a.min()}  "
+    msg += f"max={a.max()}  "
 
     if is_1d and is_int:
-        msg += f'duplicates={has_duplicates(a)}  '
-        msg += f'sorted={is_sorted(a)}  '
-        msg += f'dense={is_dense(a)}  '
-        msg += f'permutation={is_permutation(a)}  '
+        msg += f"duplicates={has_duplicates(a)}  "
+        msg += f"sorted={is_sorted(a)}  "
+        msg += f"dense={is_dense(a)}  "
+        msg += f"permutation={is_permutation(a)}  "
 
     print(msg)
 
@@ -130,23 +140,23 @@ def string_to_dtype(string):
     if isinstance(string, torch.dtype):
         return string
     assert isinstance(string, str)
-    if string in ('half', 'float16'):
+    if string in ("half", "float16"):
         return torch.float16
-    if string in ('float', 'float32'):
+    if string in ("float", "float32"):
         return torch.float32
-    if string in ('double', 'float64'):
+    if string in ("double", "float64"):
         return torch.float64
-    if string == 'bool':
+    if string == "bool":
         return torch.bool
-    if string in ('byte', 'uint8'):
+    if string in ("byte", "uint8"):
         return torch.uint8
-    if string in ('byte', 'int8'):
+    if string in ("byte", "int8"):
         return torch.int8
-    if string in ('short', 'int16'):
+    if string in ("short", "int16"):
         return torch.float16
-    if string in ('int', 'int32'):
+    if string in ("int", "int32"):
         return torch.float32
-    if string in ('long', 'int64'):
+    if string in ("long", "int64"):
         return torch.float64
     raise ValueError(f"Unknown dtype='{string}'")
 
@@ -155,14 +165,16 @@ def cast_to_optimal_integer_type(a):
     """Cast an integer tensor to the smallest possible integer dtype
     preserving its precision.
     """
-    assert isinstance(a, torch.Tensor), \
-        f"Expected an Tensor input, but received {type(a)} instead"
-    assert not a.is_floating_point(), \
-        f"Expected an integer-like input, but received dtype={a.dtype} instead"
+    assert isinstance(
+        a, torch.Tensor
+    ), f"Expected an Tensor input, but received {type(a)} instead"
+    assert (
+        not a.is_floating_point()
+    ), f"Expected an integer-like input, but received dtype={a.dtype} instead"
 
     if a.numel() == 0:
         return a.byte()
-    
+
     for dtype in [torch.uint8, torch.int16, torch.int32, torch.int64]:
         low_enough = torch.iinfo(dtype).min <= a.min()
         high_enough = a.max() <= torch.iinfo(dtype).max
@@ -203,8 +215,7 @@ def numpyfy(a):
 
 
 def torchify(x):
-    """Convert np.ndarray to torch.Tensor.
-    """
+    """Convert np.ndarray to torch.Tensor."""
     return torch.from_numpy(x) if isinstance(x, np.ndarray) else x
 
 
@@ -245,7 +256,7 @@ def numba_randperm(n):
     return a
 
 
-def fast_randperm(n, device='cpu'):
+def fast_randperm(n, device="cpu"):
     """Same as torch.randperm, but relies on numba for CPU tensors. This
     may bring a x2 speedup on CPU for n >= 1e5.
 
@@ -265,14 +276,13 @@ def fast_randperm(n, device='cpu'):
     print(f'fast_randperm: {time() - start:0.5f}s')
     ```
     """
-    if device == 'cuda' or \
-            isinstance(device, torch.device) and device.type == 'cuda':
+    if device == "cuda" or isinstance(device, torch.device) and device.type == "cuda":
         return torch.randperm(n, device=device)
     return numba_randperm(n)
 
 
 # Not working as good as experiments promised...
-def fast_zeros(*args, dtype=None, device='cpu'):
+def fast_zeros(*args, dtype=None, device="cpu"):
     """Same as torch.zeros but relies numpy on CPU. This may be x40
     faster when manipulating large tensors on CPU.
 
@@ -300,10 +310,9 @@ def fast_zeros(*args, dtype=None, device='cpu'):
     print(torch.equal(a, b), torch.equal(a, c))
     ```
     """
-    if device == 'cuda' or \
-        isinstance(device, torch.device) and device.type == 'cuda':
+    if device == "cuda" or isinstance(device, torch.device) and device.type == "cuda":
         return torch.zeros(*args, dtype=dtype, device=device)
-    out = torchify(np.zeros(tuple(args), dtype='float32'))
+    out = torchify(np.zeros(tuple(args), dtype="float32"))
     if dtype is not None:
         out = out.to(dtype)
     return out

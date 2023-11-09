@@ -1,15 +1,15 @@
 # Copied from:
 
-__debug_flag__ = {'enabled': False}
+__debug_flag__ = {"enabled": False}
 
 
 def is_debug_enabled():
     r"""Returns :obj:`True`, if the debug mode is enabled."""
-    return __debug_flag__['enabled']
+    return __debug_flag__["enabled"]
 
 
 def set_debug_enabled(mode):
-    __debug_flag__['enabled'] = mode
+    __debug_flag__["enabled"] = mode
 
 
 class debug(object):

@@ -8,17 +8,35 @@ from src.transforms import Transform
 import src
 from src.data import NAG
 from pgeof import pgeof
-from src.utils import print_tensor_info, isolated_nodes, edge_to_superedge, \
-    subedges, to_trimmed, cluster_radius_nn, is_trimmed, base_vectors_3d, \
-    scatter_mean_orientation, POINT_FEATURES, SEGMENT_BASE_FEATURES, \
-    SUBEDGE_FEATURES, ON_THE_FLY_HORIZONTAL_FEATURES, \
-    ON_THE_FLY_VERTICAL_FEATURES, sanitize_keys
+from src.utils import (
+    print_tensor_info,
+    isolated_nodes,
+    edge_to_superedge,
+    subedges,
+    to_trimmed,
+    cluster_radius_nn,
+    is_trimmed,
+    base_vectors_3d,
+    scatter_mean_orientation,
+    POINT_FEATURES,
+    SEGMENT_BASE_FEATURES,
+    SUBEDGE_FEATURES,
+    ON_THE_FLY_HORIZONTAL_FEATURES,
+    ON_THE_FLY_VERTICAL_FEATURES,
+    sanitize_keys,
+)
 
 __all__ = [
-    'AdjacencyGraph', 'SegmentFeatures', 'DelaunayHorizontalGraph',
-    'RadiusHorizontalGraph', 'OnTheFlyHorizontalEdgeFeatures',
-    'OnTheFlyVerticalEdgeFeatures', 'NAGAddSelfLoops', 'ConnectIsolated',
-    'NodeSize']
+    "AdjacencyGraph",
+    "SegmentFeatures",
+    "DelaunayHorizontalGraph",
+    "RadiusHorizontalGraph",
+    "OnTheFlyHorizontalEdgeFeatures",
+    "OnTheFlyVerticalEdgeFeatures",
+    "NAGAddSelfLoops",
+    "ConnectIsolated",
+    "NodeSize",
+]
 
 
 class AdjacencyGraph(Transform):
@@ -41,19 +59,21 @@ class AdjacencyGraph(Transform):
         self.w = w
 
     def _process(self, data):
-        assert data.has_neighbors, \
-            "Data must have 'neighbor_index' attribute to allow adjacency " \
+        assert data.has_neighbors, (
+            "Data must have 'neighbor_index' attribute to allow adjacency "
             "graph construction."
-        assert getattr(data, 'neighbor_distance', None) is not None \
-               or self.w <= 0, \
-            "Data must have 'neighbor_distance' attribute to allow adjacency " \
+        )
+        assert getattr(data, "neighbor_distance", None) is not None or self.w <= 0, (
+            "Data must have 'neighbor_distance' attribute to allow adjacency "
             "graph construction."
+        )
         assert self.k <= data.neighbor_index.shape[1]
 
         # Compute source and target indices based on neighbors
-        source = torch.arange(
-            data.num_nodes, device=data.device).repeat_interleave(self.k)
-        target = data.neighbor_index[:, :self.k].flatten()
+        source = torch.arange(data.num_nodes, device=data.device).repeat_interleave(
+            self.k
+        )
+        target = data.neighbor_index[:, : self.k].flatten()
 
         # Account for -1 neighbors and delete corresponding edges
         mask = target >= 0
@@ -64,7 +84,7 @@ class AdjacencyGraph(Transform):
         data.edge_index = torch.stack((source, target))
         if self.w > 0:
             # Recover the neighbor distances and apply the masking
-            distances = data.neighbor_distance[:, :self.k].flatten()[mask]
+            distances = data.neighbor_distance[:, : self.k].flatten()[mask]
             data.edge_attr = 1 / (self.w + distances / distances.mean())
         else:
             data.edge_attr = torch.ones_like(source, dtype=torch.float)
@@ -115,16 +135,11 @@ class SegmentFeatures(Transform):
 
     _IN_TYPE = NAG
     _OUT_TYPE = NAG
-    _NO_REPR = ['strict']
+    _NO_REPR = ["strict"]
 
     def __init__(
-            self,
-            n_max=32,
-            n_min=5,
-            keys=None,
-            mean_keys=None,
-            std_keys=None,
-            strict=True):
+        self, n_max=32, n_min=5, keys=None, mean_keys=None, std_keys=None, strict=True
+    ):
         self.n_max = n_max
         self.n_min = n_min
         self.keys = sanitize_keys(keys, default=SEGMENT_BASE_FEATURES)
@@ -142,23 +157,26 @@ class SegmentFeatures(Transform):
                 keys=self.keys,
                 mean_keys=self.mean_keys,
                 std_keys=self.std_keys,
-                strict=self.strict)
+                strict=self.strict,
+            )
         return nag
 
 
 def _compute_cluster_features(
-        i_level,
-        nag,
-        n_max=32,
-        n_min=5,
-        keys=None,
-        mean_keys=None,
-        std_keys=None,
-        strict=True):
+    i_level,
+    nag,
+    n_max=32,
+    n_min=5,
+    keys=None,
+    mean_keys=None,
+    std_keys=None,
+    strict=True,
+):
     assert isinstance(nag, NAG)
     assert i_level > 0, "Cannot compute cluster features on level-0"
-    assert nag[0].num_nodes < np.iinfo(np.uint32).max, \
-        "Too many nodes for `uint32` indices"
+    assert (
+        nag[0].num_nodes < np.iinfo(np.uint32).max
+    ), "Too many nodes for `uint32` indices"
 
     keys = sanitize_keys(keys, default=SEGMENT_BASE_FEATURES)
     mean_keys = sanitize_keys(mean_keys, default=POINT_FEATURES)
@@ -175,13 +193,13 @@ def _compute_cluster_features(
     # Sample points among the clusters. These will be used to compute
     # cluster geometric features
     idx_samples, ptr_samples = nag.get_sampling(
-        high=i_level, low=0, n_max=n_max, n_min=n_min,
-        return_pointers=True)
+        high=i_level, low=0, n_max=n_max, n_min=n_min, return_pointers=True
+    )
 
     # Compute cluster geometric features
     xyz = nag[0].pos[idx_samples].cpu().numpy()
-    nn = np.arange(idx_samples.shape[0]).astype('uint32')
-    nn_ptr = ptr_samples.cpu().numpy().astype('uint32')
+    nn = np.arange(idx_samples.shape[0]).astype("uint32")
+    nn_ptr = ptr_samples.cpu().numpy().astype("uint32")
 
     # Heuristic to avoid issues when a cluster sampling is such that
     # it produces singular covariance matrix (eg the sampling only
@@ -190,40 +208,40 @@ def _compute_cluster_features(
 
     # C++ geometric features computation on CPU
     f = pgeof(xyz, nn, nn_ptr, k_min=5, k_step=-1, verbose=False)
-    f = torch.from_numpy(f.astype('float32'))
+    f = torch.from_numpy(f.astype("float32"))
 
     # Recover length, surface and volume
-    if 'linearity' in keys:
+    if "linearity" in keys:
         data.linearity = f[:, 0].to(device).view(-1, 1)
 
-    if 'planarity' in keys:
+    if "planarity" in keys:
         data.planarity = f[:, 1].to(device).view(-1, 1)
 
-    if 'scattering' in keys:
+    if "scattering" in keys:
         data.scattering = f[:, 2].to(device).view(-1, 1)
 
-    if 'verticality' in keys:
+    if "verticality" in keys:
         data.verticality = f[:, 3].to(device).view(-1, 1)
 
-    if 'curvature' in keys:
+    if "curvature" in keys:
         data.curvature = f[:, 10].to(device).view(-1, 1)
 
-    if 'log_length' in keys:
+    if "log_length" in keys:
         data.log_length = torch.log(f[:, 7] + 1).to(device).view(-1, 1)
 
-    if 'log_surface' in keys:
+    if "log_surface" in keys:
         data.log_surface = torch.log(f[:, 8] + 1).to(device).view(-1, 1)
 
-    if 'log_volume' in keys:
+    if "log_volume" in keys:
         data.log_volume = torch.log(f[:, 9] + 1).to(device).view(-1, 1)
 
     # As a way to "stabilize" the normals' orientation, we choose to
     # express them as oriented in the z+ half-space
-    if 'normal' in keys:
+    if "normal" in keys:
         data.normal = f[:, 4:7].view(-1, 3).to(device)
         data.normal[data.normal[:, 2] < 0] *= -1
 
-    if 'log_size' in keys:
+    if "log_size" in keys:
         data.log_size = (torch.log(sub_size + 1).view(-1, 1) - np.log(2)) / 10
 
     # Get the cluster index each poitn belongs to
@@ -236,11 +254,10 @@ def _compute_cluster_features(
             raise ValueError(f"No point key `{key}` to build 'mean_{key} key'")
         if f is None:
             continue
-        if key == 'normal':
-            data[f'mean_{key}'] = scatter_mean_orientation(
-                nag[0][key], super_index)
+        if key == "normal":
+            data[f"mean_{key}"] = scatter_mean_orientation(nag[0][key], super_index)
         else:
-            data[f'mean_{key}'] = scatter_mean(nag[0][key], super_index, dim=0)
+            data[f"mean_{key}"] = scatter_mean(nag[0][key], super_index, dim=0)
 
     # Add the std of point attributes, identified by their key
     for key in std_keys:
@@ -249,37 +266,45 @@ def _compute_cluster_features(
             raise ValueError(f"No point key `{key}` to build 'std_{key} key'")
         if f is None:
             continue
-        data[f'std_{key}'] = scatter_std(nag[0][key], super_index, dim=0)
+        data[f"std_{key}"] = scatter_std(nag[0][key], super_index, dim=0)
 
     # To debug sampling
     if src.is_debug_enabled():
         data.super_super_index = super_index.to(device)
         data.node_idx_samples = idx_samples.to(device)
         data.node_xyz_samples = torch.from_numpy(xyz).to(device)
-        data.node_nn_samples = torch.from_numpy(nn.astype('int64')).to(device)
-        data.node_nn_ptr_samples = torch.from_numpy(
-            nn_ptr.astype('int64')).to(device)
+        data.node_nn_samples = torch.from_numpy(nn.astype("int64")).to(device)
+        data.node_nn_ptr_samples = torch.from_numpy(nn_ptr.astype("int64")).to(device)
 
         end = ptr_samples[1:]
         start = ptr_samples[:-1]
         super_index_samples = torch.repeat_interleave(
-            torch.arange(num_nodes), end - start)
-        print('\n\n' + '*' * 50)
-        print(f'        cluster graph for level={i_level}')
-        print('*' * 50 + '\n')
-        print(f'nag: {nag}')
-        print(f'data: {data}')
-        print('\n* Sampling for superpoint features')
-        print_tensor_info(idx_samples, name='idx_samples')
-        print_tensor_info(ptr_samples, name='ptr_samples')
-        print(f'all clusters have a ptr:                   '
-              f'{ptr_samples.shape[0] - 1 == num_nodes}')
-        print(f'all clusters received n_min+ samples:      '
-              f'{(end - start).ge(n_min).all()}')
-        print(f'clusters which received no sample:         '
-              f'{torch.where(end == start)[0].shape[0]}/{num_nodes}')
-        print(f'all points belong to the correct clusters: '
-              f'{torch.equal(super_index[idx_samples], super_index_samples)}')
+            torch.arange(num_nodes), end - start
+        )
+        print("\n\n" + "*" * 50)
+        print(f"        cluster graph for level={i_level}")
+        print("*" * 50 + "\n")
+        print(f"nag: {nag}")
+        print(f"data: {data}")
+        print("\n* Sampling for superpoint features")
+        print_tensor_info(idx_samples, name="idx_samples")
+        print_tensor_info(ptr_samples, name="ptr_samples")
+        print(
+            f"all clusters have a ptr:                   "
+            f"{ptr_samples.shape[0] - 1 == num_nodes}"
+        )
+        print(
+            f"all clusters received n_min+ samples:      "
+            f"{(end - start).ge(n_min).all()}"
+        )
+        print(
+            f"clusters which received no sample:         "
+            f"{torch.where(end == start)[0].shape[0]}/{num_nodes}"
+        )
+        print(
+            f"all points belong to the correct clusters: "
+            f"{torch.equal(super_index[idx_samples], super_index_samples)}"
+        )
 
     # Update the i_level Data in the NAG
     nag._list[i_level] = data
@@ -339,8 +364,9 @@ class DelaunayHorizontalGraph(Transform):
         self.keys = sanitize_keys(keys, default=SUBEDGE_FEATURES)
 
     def _process(self, nag):
-        assert isinstance(self.max_dist, (int, float, list)), \
-            "Expected a scalar or a List"
+        assert isinstance(
+            self.max_dist, (int, float, list)
+        ), "Expected a scalar or a List"
 
         max_dist = self.max_dist
         if not isinstance(max_dist, list):
@@ -348,31 +374,32 @@ class DelaunayHorizontalGraph(Transform):
 
         for i_level, md in zip(range(1, nag.num_levels), max_dist):
             nag = _horizontal_graph_by_delaunay(
-                i_level, nag,
+                i_level,
+                nag,
                 n_max_edge=self.n_max_edge,
                 n_min=self.n_min,
                 max_dist=md,
-                keys=self.keys)
+                keys=self.keys,
+            )
 
         return nag
 
 
 def _horizontal_graph_by_delaunay(
-        i_level,
-        nag,
-        n_max_edge=64,
-        n_min=5,
-        max_dist=-1,
-        keys=None):
+    i_level, nag, n_max_edge=64, n_min=5, max_dist=-1, keys=None
+):
     assert isinstance(nag, NAG)
     assert i_level > 0, "Cannot compute cluster graph on level 0"
-    assert nag[0].has_edges, \
-        "Level-0 must have an adjacency structure in 'edge_index' to allow " \
+    assert nag[0].has_edges, (
+        "Level-0 must have an adjacency structure in 'edge_index' to allow "
         "guided sampling for superedges construction."
-    assert nag[0].num_nodes < np.iinfo(np.uint32).max, \
-        "Too many nodes for `uint32` indices"
-    assert nag[0].num_edges < np.iinfo(np.uint32).max, \
-        "Too many edges for `uint32` indices"
+    )
+    assert (
+        nag[0].num_nodes < np.iinfo(np.uint32).max
+    ), "Too many nodes for `uint32` indices"
+    assert (
+        nag[0].num_edges < np.iinfo(np.uint32).max
+    ), "Too many edges for `uint32` indices"
 
     keys = sanitize_keys(keys, default=SUBEDGE_FEATURES)
 
@@ -422,8 +449,13 @@ def _horizontal_graph_by_delaunay(
     # generously here than for cluster features, because we need to
     # capture fine-grained adjacency
     idx_samples, ptr_samples = nag.get_sampling(
-        high=i_level, low=0, n_max=n_max_edge, n_min=n_min, mask=mask,
-        return_pointers=True)
+        high=i_level,
+        low=0,
+        n_max=n_max_edge,
+        n_min=n_min,
+        mask=mask,
+        return_pointers=True,
+    )
 
     # To debug sampling
     if src.is_debug_enabled():
@@ -431,20 +463,29 @@ def _horizontal_graph_by_delaunay(
 
         end = ptr_samples[1:]
         start = ptr_samples[:-1]
-        super_index_samples = torch.arange(
-            num_nodes, device=device).repeat_interleave(end - start)
+        super_index_samples = torch.arange(num_nodes, device=device).repeat_interleave(
+            end - start
+        )
 
-        print('\n* Sampling for superedge features')
-        print_tensor_info(idx_samples, name='idx_samples')
-        print_tensor_info(ptr_samples, name='ptr_samples')
-        print(f'all clusters have a ptr:                   '
-              f'{ptr_samples.shape[0] - 1 == num_nodes}')
-        print(f'all clusters received n_min+ samples:      '
-              f'{(end - start).ge(n_min).all()}')
-        print(f'clusters which received no sample:         '
-              f'{torch.where(end == start)[0].shape[0]}/{num_nodes}')
-        print(f'all points belong to the correct clusters: '
-              f'{torch.equal(super_index[idx_samples], super_index_samples)}')
+        print("\n* Sampling for superedge features")
+        print_tensor_info(idx_samples, name="idx_samples")
+        print_tensor_info(ptr_samples, name="ptr_samples")
+        print(
+            f"all clusters have a ptr:                   "
+            f"{ptr_samples.shape[0] - 1 == num_nodes}"
+        )
+        print(
+            f"all clusters received n_min+ samples:      "
+            f"{(end - start).ge(n_min).all()}"
+        )
+        print(
+            f"clusters which received no sample:         "
+            f"{torch.where(end == start)[0].shape[0]}/{num_nodes}"
+        )
+        print(
+            f"all points belong to the correct clusters: "
+            f"{torch.equal(super_index[idx_samples], super_index_samples)}"
+        )
 
     # Delaunay triangulation on the sampled points. The tetrahedra edges
     # are voronoi graph edges. This is the bottleneck of this function,
@@ -454,11 +495,20 @@ def _horizontal_graph_by_delaunay(
 
     # Concatenate all edges of the triangulation
     pairs = torch.tensor(
-        list(itertools.combinations(range(4), 2)), device=device,
-        dtype=torch.long)
-    edges_point = torch.from_numpy(np.hstack([
-        np.vstack((tri.simplices[:, i], tri.simplices[:, j]))
-        for i, j in pairs])).long().to(device)
+        list(itertools.combinations(range(4), 2)), device=device, dtype=torch.long
+    )
+    edges_point = (
+        torch.from_numpy(
+            np.hstack(
+                [
+                    np.vstack((tri.simplices[:, i], tri.simplices[:, j]))
+                    for i, j in pairs
+                ]
+            )
+        )
+        .long()
+        .to(device)
+    )
     edges_point = idx_samples[edges_point]
 
     # Remove duplicate edges. For now, (i,j) and (j,i) are considered
@@ -479,8 +529,7 @@ def _horizontal_graph_by_delaunay(
     # shortest edge to avoid it, even if it is larger than max_dist
     if max_dist > 0:
         # Identify the edges that are too long
-        dist = (nag[0].pos[edges_point[1]]
-                - nag[0].pos[edges_point[0]]).norm(dim=1)
+        dist = (nag[0].pos[edges_point[1]] - nag[0].pos[edges_point[0]]).norm(dim=1)
         too_far = dist > max_dist
 
         # Recover the corresponding cluster indices for each edge
@@ -489,14 +538,18 @@ def _horizontal_graph_by_delaunay(
         # Identify the clusters which would be isolated if all edges
         # beyond max_dist were removed
         potential_isolated = isolated_nodes(
-            edges_super[:, ~too_far], num_nodes=num_nodes)
+            edges_super[:, ~too_far], num_nodes=num_nodes
+        )
 
         # For those clusters, we will tolerate 1 edge larger than
         # max_dist and that connects to another cluster
         source_isolated = potential_isolated[edges_super[0]]
         target_isolated = potential_isolated[edges_super[1]]
-        tricky_edge = too_far & (source_isolated | target_isolated) \
-                      & (edges_super[0] != edges_super[1])
+        tricky_edge = (
+            too_far
+            & (source_isolated | target_isolated)
+            & (edges_super[0] != edges_super[1])
+        )
 
         # Sort tricky edges by distance in descending order and sort the
         # edge indices and cluster indices consequently. By populating a
@@ -505,8 +558,7 @@ def _horizontal_graph_by_delaunay(
         order = dist[tricky_edge].sort(descending=True).indices
         idx = edges_super[:, tricky_edge][:, order]
         val = torch.where(tricky_edge)[0][order]
-        cluster_shortest_edge = -torch.ones(
-            num_nodes, dtype=torch.long, device=device)
+        cluster_shortest_edge = -torch.ones(num_nodes, dtype=torch.long, device=device)
         cluster_shortest_edge[idx[0]] = val
         cluster_shortest_edge[idx[1]] = val
         idx_edge_to_keep = cluster_shortest_edge[potential_isolated]
@@ -530,7 +582,8 @@ def _horizontal_graph_by_delaunay(
     # Features for all undirected edges can be computed later using
     # `_on_the_fly_horizontal_edge_features()`
     data = _minimalistic_horizontal_edge_features(
-        data, nag[0].pos, edges_point, se_id, keys=keys)
+        data, nag[0].pos, edges_point, se_id, keys=keys
+    )
 
     # Restore the i_level Data object, if need be
     nag._list[i_level] = data
@@ -591,32 +644,35 @@ class RadiusHorizontalGraph(Transform):
 
     _IN_TYPE = NAG
     _OUT_TYPE = NAG
-    _NO_REPR = ['chunk_size']
+    _NO_REPR = ["chunk_size"]
 
     def __init__(
-            self,
-            k_min=1,
-            k_max=100,
-            gap=0,
-            se_ratio=0.2,
-            se_min=20,
-            cycles=3,
-            margin=0.2,
-            chunk_size=100000,
-            halfspace_filter=True,
-            bbox_filter=True,
-            target_pc_flip=True,
-            source_pc_sort=False,
-            keys=None):
+        self,
+        k_min=1,
+        k_max=100,
+        gap=0,
+        se_ratio=0.2,
+        se_min=20,
+        cycles=3,
+        margin=0.2,
+        chunk_size=100000,
+        halfspace_filter=True,
+        bbox_filter=True,
+        target_pc_flip=True,
+        source_pc_sort=False,
+        keys=None,
+    ):
 
         if isinstance(k_min, list):
-            assert all([k > 0 for k in k_min]), \
-                "k_min must be 1 or more, to avoid any unpleasant downstream " \
+            assert all([k > 0 for k in k_min]), (
+                "k_min must be 1 or more, to avoid any unpleasant downstream "
                 "issues where nodes have no edge"
+            )
         else:
-            assert k_min > 0, \
-                "k_min must be 1 or more, to avoid any unpleasant downstream " \
+            assert k_min > 0, (
+                "k_min must be 1 or more, to avoid any unpleasant downstream "
                 "issues where nodes have no edge"
+            )
 
         self.k_max = k_max
         self.k_min = k_min
@@ -634,33 +690,56 @@ class RadiusHorizontalGraph(Transform):
 
     def _process(self, nag):
         # Convert parameters to list for each NAG level, if need be
-        se_ratio = self.se_ratio if isinstance(self.se_ratio, list) \
+        se_ratio = (
+            self.se_ratio
+            if isinstance(self.se_ratio, list)
             else [self.se_ratio] * (nag.num_levels - 1)
-        se_min = self.se_min if isinstance(self.se_min, list) \
+        )
+        se_min = (
+            self.se_min
+            if isinstance(self.se_min, list)
             else [self.se_min] * (nag.num_levels - 1)
-        cycles = self.cycles if isinstance(self.cycles, list) \
+        )
+        cycles = (
+            self.cycles
+            if isinstance(self.cycles, list)
             else [self.cycles] * (nag.num_levels - 1)
-        margin = self.margin if isinstance(self.margin, list) \
+        )
+        margin = (
+            self.margin
+            if isinstance(self.margin, list)
             else [self.margin] * (nag.num_levels - 1)
-        chunk_size = self.chunk_size if isinstance(self.chunk_size, list) \
+        )
+        chunk_size = (
+            self.chunk_size
+            if isinstance(self.chunk_size, list)
             else [self.chunk_size] * (nag.num_levels - 1)
+        )
 
         # Compute the horizontal graph, without edge features
         nag = _horizontal_graph_by_radius(
-            nag, k_min=self.k_min, k_max=self.k_max, gap=self.gap, trim=True,
-            cycles=cycles, chunk_size=chunk_size)
+            nag,
+            k_min=self.k_min,
+            k_max=self.k_max,
+            gap=self.gap,
+            trim=True,
+            cycles=cycles,
+            chunk_size=chunk_size,
+        )
 
         # Compute the edge features, level by level
         for i_level, ser, sem, cy, mg, cs in zip(
-                range(1, nag.num_levels), se_ratio, se_min, cycles, margin,
-                chunk_size):
+            range(1, nag.num_levels), se_ratio, se_min, cycles, margin, chunk_size
+        ):
             nag = self._process_edge_features_for_single_level(
-                nag, i_level, ser, sem, cy, mg, cs)
+                nag, i_level, ser, sem, cy, mg, cs
+            )
 
         return nag
 
     def _process_edge_features_for_single_level(
-            self, nag, i_level, se_ratio, se_min, cycles, margin, chunk_size):
+        self, nag, i_level, se_ratio, se_min, cycles, margin, chunk_size
+    ):
         # Compute 'subedges', ie edges between level-0 points making up
         # the edges between the segments. These will be used for edge
         # features computation. NB: this operation simplifies the
@@ -680,7 +759,8 @@ class RadiusHorizontalGraph(Transform):
             bbox_filter=self.bbox_filter,
             target_pc_flip=self.target_pc_flip,
             source_pc_sort=self.source_pc_sort,
-            chunk_size=chunk_size)
+            chunk_size=chunk_size,
+        )
 
         # Prepare for edge feature computation
         data = nag[i_level]
@@ -691,7 +771,8 @@ class RadiusHorizontalGraph(Transform):
         # edges can be computed later using
         # `_on_the_fly_horizontal_edge_features()`
         data = _minimalistic_horizontal_edge_features(
-            data, nag[0].pos, se_point_index, se_id, keys=self.keys)
+            data, nag[0].pos, se_point_index, se_id, keys=self.keys
+        )
 
         # Restore the i_level Data object
         nag._list[i_level] = data
@@ -700,13 +781,8 @@ class RadiusHorizontalGraph(Transform):
 
 
 def _horizontal_graph_by_radius(
-        nag,
-        k_min=1,
-        k_max=100,
-        gap=0,
-        trim=True,
-        cycles=3,
-        chunk_size=None):
+    nag, k_min=1, k_max=100, gap=0, trim=True, cycles=3, chunk_size=None
+):
     """Search neighboring segments with points distant from `gap`or
     less.
 
@@ -749,23 +825,25 @@ def _horizontal_graph_by_radius(
         chunk_size = [chunk_size] * (nag.num_levels - 1)
 
     for i_level, k_lo, k_hi, g, cy, cs in zip(
-            range(1, nag.num_levels), k_min, k_max, gap, cycles, chunk_size):
+        range(1, nag.num_levels), k_min, k_max, gap, cycles, chunk_size
+    ):
         nag = _horizontal_graph_by_radius_for_single_level(
-            nag, i_level, k_min=k_lo, k_max=k_hi, gap=g, trim=trim,
-            cycles=cy, chunk_size=cs)
+            nag,
+            i_level,
+            k_min=k_lo,
+            k_max=k_hi,
+            gap=g,
+            trim=trim,
+            cycles=cy,
+            chunk_size=cs,
+        )
 
     return nag
 
 
 def _horizontal_graph_by_radius_for_single_level(
-        nag,
-        i_level,
-        k_min=1,
-        k_max=100,
-        gap=0,
-        trim=True,
-        cycles=3,
-        chunk_size=100000):
+    nag, i_level, k_min=1, k_max=100, gap=0, trim=True, cycles=3, chunk_size=100000
+):
     """
 
     :param nag:
@@ -780,10 +858,12 @@ def _horizontal_graph_by_radius_for_single_level(
     """
     assert isinstance(nag, NAG)
     assert i_level > 0, "Cannot compute cluster graph on level 0"
-    assert nag[0].num_nodes < np.iinfo(np.uint32).max, \
-        "Too many nodes for `uint32` indices"
-    assert nag[0].num_edges < np.iinfo(np.uint32).max, \
-        "Too many edges for `uint32` indices"
+    assert (
+        nag[0].num_nodes < np.iinfo(np.uint32).max
+    ), "Too many nodes for `uint32` indices"
+    assert (
+        nag[0].num_edges < np.iinfo(np.uint32).max
+    ), "Too many edges for `uint32` indices"
 
     # Recover the i_level Data object we will be working on
     data = nag[i_level]
@@ -797,7 +877,8 @@ def _horizontal_graph_by_radius_for_single_level(
     if num_nodes < 2:
         raise ValueError(
             f"Input NAG only has 1 node at level={i_level}. Cannot compute "
-            f"radius-based horizontal graph.")
+            f"radius-based horizontal graph."
+        )
 
     # Compute the super_index for level-0 points wrt the target level
     super_index = nag.get_super_index(i_level)
@@ -805,8 +886,14 @@ def _horizontal_graph_by_radius_for_single_level(
     # Search neighboring clusters
     data.raise_if_edge_keys()
     edge_index, distances = cluster_radius_nn(
-        nag[0].pos, super_index, k_max=k_max, gap=gap, trim=trim,
-        cycles=cycles, chunk_size=chunk_size)
+        nag[0].pos,
+        super_index,
+        k_max=k_max,
+        gap=gap,
+        trim=trim,
+        cycles=cycles,
+        chunk_size=chunk_size,
+    )
 
     # Save the graph in the Data object
     data.edge_index = edge_index
@@ -819,7 +906,7 @@ def _horizontal_graph_by_radius_for_single_level(
     # Trim the graph. This is temporary, to alleviate edge features
     # computation
     if trim:
-        data.to_trimmed(reduce='min')
+        data.to_trimmed(reduce="min")
 
     # Store the updated Data object in the NAG
     nag._list[i_level] = data
@@ -828,7 +915,8 @@ def _horizontal_graph_by_radius_for_single_level(
 
 
 def _minimalistic_horizontal_edge_features(
-        data, points, se_point_index, se_id, keys=None):
+    data, points, se_point_index, se_id, keys=None
+):
     """Compute the features for horizontal edges, given the edge graph
     and the level-0 'subedges' making up each edge.
 
@@ -847,16 +935,18 @@ def _minimalistic_horizontal_edge_features(
     # Recover the edges between the segments
     se = data.edge_index
 
-    assert is_trimmed(se), \
-        "Expects the graph to be trimmed, consider using " \
+    assert is_trimmed(se), (
+        "Expects the graph to be trimmed, consider using "
         "`src.utils.to_trimmed()` before computing the features"
+    )
 
-    if not all(['mean_off' in keys, 'std_off' in keys, 'mean_dist' in keys]):
+    if not all(["mean_off" in keys, "std_off" in keys, "mean_dist" in keys]):
         raise NotImplementedError(
             "For now, 'mean_off', 'std_off' and 'mean_dist' must all be "
             "computed, since we must store them all into 'edge_attr'. Things"
             "will be different once we support custom 'edge_<key>' everywhere,"
-            "but not for now.")
+            "but not for now."
+        )
 
     # Direction are the pointwise source->target vectors, based on which
     # we will compute superedge descriptors
@@ -884,11 +974,11 @@ def _minimalistic_horizontal_edge_features(
 
     # Save superedges and superedge features in the Data object
     f = []
-    if 'mean_off' in keys:
+    if "mean_off" in keys:
         f.append(se_mean_off)
-    if 'std_off' in keys:
+    if "std_off" in keys:
         f.append(se_std_off)
-    if 'mean_dist' in keys:
+    if "mean_dist" in keys:
         f.append(se_mean_dist.view(-1, 1))
     data.edge_index = se
     data.edge_attr = torch.cat(f, dim=1)
@@ -950,22 +1040,19 @@ class OnTheFlyHorizontalEdgeFeatures(Transform):
     _IN_TYPE = NAG
     _OUT_TYPE = NAG
 
-    def __init__(
-            self, keys=None, use_mean_normal=False):
+    def __init__(self, keys=None, use_mean_normal=False):
         self.keys = sanitize_keys(keys, default=ON_THE_FLY_HORIZONTAL_FEATURES)
         self.use_mean_normal = use_mean_normal
 
     def _process(self, nag):
         for i_level in range(1, nag.num_levels):
             nag._list[i_level] = _on_the_fly_horizontal_edge_features(
-                nag[i_level],
-                keys=self.keys,
-                use_mean_normal=self.use_mean_normal)
+                nag[i_level], keys=self.keys, use_mean_normal=self.use_mean_normal
+            )
         return nag
 
 
-def _on_the_fly_horizontal_edge_features(
-        data, keys=None, use_mean_normal=False):
+def _on_the_fly_horizontal_edge_features(data, keys=None, use_mean_normal=False):
     """Compute all edges and edge features for a horizontal graph, given
     a trimmed graph and some precomputed edge attributes.
     """
@@ -976,60 +1063,72 @@ def _on_the_fly_horizontal_edge_features(
 
     data.raise_if_edge_keys()
 
-    normal_key = 'mean_normal' if use_mean_normal else 'normal'
+    normal_key = "mean_normal" if use_mean_normal else "normal"
 
-    assert is_trimmed(se), \
-        "Expects the graph to be trimmed, consider using " \
+    assert is_trimmed(se), (
+        "Expects the graph to be trimmed, consider using "
         "`src.utils.to_trimmed()` before computing the features"
-    if 'mean_off' in keys:
-        assert getattr(data, 'edge_attr', None) is not None, \
-            "Expected input Data to have a 'edge_attr' attribute precomputed " \
+    )
+    if "mean_off" in keys:
+        assert getattr(data, "edge_attr", None) is not None, (
+            "Expected input Data to have a 'edge_attr' attribute precomputed "
             "using `_minimalistic_horizontal_edge_features`"
-    if 'std_off' in keys:
-        assert getattr(data, 'edge_attr', None) is not None, \
-            "Expected input Data to have a 'edge_attr' attribute precomputed " \
+        )
+    if "std_off" in keys:
+        assert getattr(data, "edge_attr", None) is not None, (
+            "Expected input Data to have a 'edge_attr' attribute precomputed "
             "using `_minimalistic_horizontal_edge_features`"
-    if 'mean_dist' in keys:
-        assert getattr(data, 'edge_attr', None) is not None, \
-            "Expected input Data to have a 'edge_attr' attribute precomputed " \
+        )
+    if "mean_dist" in keys:
+        assert getattr(data, "edge_attr", None) is not None, (
+            "Expected input Data to have a 'edge_attr' attribute precomputed "
             "using `_minimalistic_horizontal_edge_features`"
-    if 'angle_source' in keys or 'angle_target' in keys:
-        assert getattr(data, normal_key, None) is not None and \
-               getattr(data, 'edge_attr', None) is not None, \
-            f"Expected input Data to have a '{normal_key}' " \
-            "attribute and an 'edge_attr' attribute precomputed using " \
+        )
+    if "angle_source" in keys or "angle_target" in keys:
+        assert (
+            getattr(data, normal_key, None) is not None
+            and getattr(data, "edge_attr", None) is not None
+        ), (
+            f"Expected input Data to have a '{normal_key}' "
+            "attribute and an 'edge_attr' attribute precomputed using "
             "`_minimalistic_horizontal_edge_features`"
-    if 'normal_angle' in keys:
-        assert getattr(data, normal_key, None) is not None, \
-            f"Expected input Data to have a '{normal_key}'"
-    if 'log_length' in keys:
-        assert getattr(data, 'log_length', None) is not None, \
-            "Expected input Data to have a 'log_length' attribute"
-    if 'log_surface' in keys:
-        assert getattr(data, 'log_surface', None) is not None, \
-            "Expected input Data to have a 'log_surface' attribute"
-    if 'log_volume' in keys:
-        assert getattr(data, 'log_volume', None) is not None, \
-            "Expected input Data to have a 'log_volume' attribute"
-    if 'log_size' in keys:
-        assert getattr(data, 'log_size', None) is not None, \
-            "Expected input Data to have a 'log_size' attribute"
+        )
+    if "normal_angle" in keys:
+        assert (
+            getattr(data, normal_key, None) is not None
+        ), f"Expected input Data to have a '{normal_key}'"
+    if "log_length" in keys:
+        assert (
+            getattr(data, "log_length", None) is not None
+        ), "Expected input Data to have a 'log_length' attribute"
+    if "log_surface" in keys:
+        assert (
+            getattr(data, "log_surface", None) is not None
+        ), "Expected input Data to have a 'log_surface' attribute"
+    if "log_volume" in keys:
+        assert (
+            getattr(data, "log_volume", None) is not None
+        ), "Expected input Data to have a 'log_volume' attribute"
+    if "log_size" in keys:
+        assert (
+            getattr(data, "log_size", None) is not None
+        ), "Expected input Data to have a 'log_size' attribute"
 
     f_list = []
 
-    if 'std_off' in keys:
+    if "std_off" in keys:
         # Precomputed edge features might be expressed in float16, so we
         # convert them to float32 here
         f = data.edge_attr[:, 3:6].float()
         f_list.append(torch.cat((f, f), dim=0))
 
-    if 'mean_dist' in keys:
+    if "mean_dist" in keys:
         # Precomputed edge features might be expressed in float16, so we
         # convert them to float32 here
         f = data.edge_attr[:, 6].float().view(-1, 1)
         f_list.append(torch.cat((f, f), dim=0))
 
-    if 'mean_off' in keys or 'angle_source' in keys or 'angle_target' in keys:
+    if "mean_off" in keys or "angle_source" in keys or "angle_target" in keys:
         # Precomputed edge features might be expressed in float16, so we
         # convert them to float32 here
         se_mean_off = data.edge_attr[:, :3].float()
@@ -1041,44 +1140,44 @@ def _on_the_fly_horizontal_edge_features(
         se_direction[se_direction.isnan()] = 0
         se_direction = se_direction.clip(-1, 1)
 
-        if 'mean_off' in keys:
+        if "mean_off" in keys:
             # We place mean_off in the first 3 edge_attr columns, for
             # homogeneity with input edge_attr from
             # _minimalistic_horizontal_edge_features
             f_list = [torch.cat((se_mean_off, -se_mean_off), dim=0)] + f_list
 
-        if 'angle_source' in keys:
+        if "angle_source" in keys:
             normal = getattr(data, normal_key, None)
             f = (se_direction * normal[se[0]]).sum(dim=1).abs()
             f_list.append(torch.cat((f, f), dim=0).view(-1, 1))
 
-        if 'angle_target' in keys:
+        if "angle_target" in keys:
             normal = getattr(data, normal_key, None)
             f = (se_direction * normal[se[1]]).sum(dim=1).abs()
             f_list.append(torch.cat((f, f), dim=0).view(-1, 1))
 
-    if 'normal_angle' in keys:
+    if "normal_angle" in keys:
         normal = getattr(data, normal_key, None)
         f = (normal[se[0]] * normal[se[1]]).sum(dim=1).abs()
         f_list.append(torch.cat((f, f), dim=0).view(-1, 1))
 
-    if 'log_length' in keys:
+    if "log_length" in keys:
         f = data.log_length[se[0]] - data.log_length[se[1]]
         f_list.append(torch.cat((f, -f), dim=0).view(-1, 1))
 
-    if 'log_surface' in keys:
+    if "log_surface" in keys:
         f = data.log_surface[se[0]] - data.log_surface[se[1]]
         f_list.append(torch.cat((f, -f), dim=0).view(-1, 1))
 
-    if 'log_volume' in keys:
+    if "log_volume" in keys:
         f = data.log_volume[se[0]] - data.log_volume[se[1]]
         f_list.append(torch.cat((f, -f), dim=0).view(-1, 1))
 
-    if 'log_size' in keys:
+    if "log_size" in keys:
         f = data.log_size[se[0]] - data.log_size[se[1]]
         f_list.append(torch.cat((f, -f), dim=0).view(-1, 1))
 
-    if 'centroid_dir' in keys or 'centroid_dist' in keys:
+    if "centroid_dir" in keys or "centroid_dist" in keys:
         # Compute the distance and direction between the segments'
         # centroids
         se_centroid_dir = data.pos[se[1]] - data.pos[se[0]]
@@ -1090,10 +1189,10 @@ def _on_the_fly_horizontal_edge_features(
         se_centroid_dir[se_centroid_dir.isnan()] = 0
         se_centroid_dir = se_centroid_dir.clip(-1, 1)
 
-        if 'centroid_dir' in keys:
+        if "centroid_dir" in keys:
             f_list.append(torch.cat((se_centroid_dir, -se_centroid_dir), dim=0))
 
-        if 'centroid_dist' in keys:
+        if "centroid_dist" in keys:
             f_list.append(torch.cat((se_centroid_dist, se_centroid_dist), dim=0))
 
     # Update the edge_index with j->i edges
@@ -1101,7 +1200,7 @@ def _on_the_fly_horizontal_edge_features(
 
     # Update all edge features into edge_attr and remove all other
     # edge_<key> to save memory
-    for k in ['edge_attr'] + data.edge_keys:
+    for k in ["edge_attr"] + data.edge_keys:
         data[k] = None
     if len(f_list) > 0:
         data.edge_attr = torch.cat(f_list, dim=1)
@@ -1153,19 +1252,21 @@ class OnTheFlyVerticalEdgeFeatures(Transform):
             # For level-0 points, we artificially set 'mean_normal' from
             # 'normal', if need be
             if self.use_mean_normal and i_level == 1:
-                if getattr(data_child, 'mean_normal', None):
-                    data_child.mean_normal = getattr(data_child, 'normal', None)
+                if getattr(data_child, "mean_normal", None):
+                    data_child.mean_normal = getattr(data_child, "normal", None)
 
             nag._list[i_level - 1] = _on_the_fly_vertical_edge_features(
                 data_child,
                 data_parent,
                 keys=self.keys,
-                use_mean_normal=self.use_mean_normal)
+                use_mean_normal=self.use_mean_normal,
+            )
         return nag
 
 
 def _on_the_fly_vertical_edge_features(
-        data_child, data_parent, keys=None, use_mean_normal=False):
+    data_child, data_parent, keys=None, use_mean_normal=False
+):
     """Compute edge features for a vertical graph, given child and
     parent nodes.
     """
@@ -1174,33 +1275,39 @@ def _on_the_fly_vertical_edge_features(
     if len(keys) == 0:
         return data_child
 
-    normal_key = 'mean_normal' if use_mean_normal else 'normal'
+    normal_key = "mean_normal" if use_mean_normal else "normal"
 
     # Recover the parent index of each child node
     idx = data_child.super_index
-    assert idx is not None, \
-        "Expected input child Data to have a 'super_index' attribute"
+    assert (
+        idx is not None
+    ), "Expected input child Data to have a 'super_index' attribute"
 
     for d in [data_child, data_parent]:
-        if 'normal_angle' in keys:
-            assert getattr(d, normal_key, None) is not None, \
-                f"Expected input Data to have a '{normal_key}' attribute"
-        if 'log_length' in keys:
-            assert getattr(d, 'log_length', None) is not None, \
-                "Expected input Data to have a 'log_length' attribute"
-        if 'log_surface' in keys:
-            assert getattr(d, 'log_surface', None) is not None, \
-                "Expected input Data to have a 'log_surface' attribute"
-        if 'log_volume' in keys:
-            assert getattr(d, 'log_volume', None) is not None, \
-                "Expected input Data to have a 'log_volume' attribute"
-        if 'log_size' in keys:
-            assert getattr(d, 'log_size', None) is not None, \
-                "Expected input Data to have a 'log_size' attribute"
+        if "normal_angle" in keys:
+            assert (
+                getattr(d, normal_key, None) is not None
+            ), f"Expected input Data to have a '{normal_key}' attribute"
+        if "log_length" in keys:
+            assert (
+                getattr(d, "log_length", None) is not None
+            ), "Expected input Data to have a 'log_length' attribute"
+        if "log_surface" in keys:
+            assert (
+                getattr(d, "log_surface", None) is not None
+            ), "Expected input Data to have a 'log_surface' attribute"
+        if "log_volume" in keys:
+            assert (
+                getattr(d, "log_volume", None) is not None
+            ), "Expected input Data to have a 'log_volume' attribute"
+        if "log_size" in keys:
+            assert (
+                getattr(d, "log_size", None) is not None
+            ), "Expected input Data to have a 'log_size' attribute"
 
     f_list = []
 
-    if 'centroid_dir' in keys or 'centroid_dist' in keys:
+    if "centroid_dir" in keys or "centroid_dist" in keys:
         # Compute the distance and direction between the child and
         # parent segments' centroids
         ve_centroid_dir = data_parent.pos[idx] - data_child.pos
@@ -1212,31 +1319,31 @@ def _on_the_fly_vertical_edge_features(
         ve_centroid_dir[ve_centroid_dir.isnan()] = 0
         ve_centroid_dir = ve_centroid_dir.clip(-1, 1)
 
-        if 'centroid_dir' in keys:
+        if "centroid_dir" in keys:
             f_list.append(ve_centroid_dir)
 
-        if 'centroid_dist' in keys:
+        if "centroid_dist" in keys:
             f_list.append(ve_centroid_dist.view(-1, 1))
 
-    if 'normal_angle' in keys:
+    if "normal_angle" in keys:
         child_normal = getattr(data_child, normal_key, None)
         parent_normal = getattr(data_parent, normal_key, None)
         f = (child_normal * parent_normal[idx]).sum(dim=1).abs()
         f_list.append(f.view(-1, 1))
 
-    if 'log_length' in keys:
+    if "log_length" in keys:
         f = data_parent.log_length[idx] - data_child.log_length
         f_list.append(f.view(-1, 1))
 
-    if 'log_surface' in keys:
+    if "log_surface" in keys:
         f = data_parent.log_surface[idx] - data_child.log_surface
         f_list.append(f.view(-1, 1))
 
-    if 'log_volume' in keys:
+    if "log_volume" in keys:
         f = data_parent.log_volume[idx] - data_child.log_volume
         f_list.append(f.view(-1, 1))
 
-    if 'log_size' in keys:
+    if "log_size" in keys:
         f = data_parent.log_size[idx] - data_child.log_size
         f_list.append(f.view(-1, 1))
 
@@ -1272,10 +1379,8 @@ class NAGAddSelfLoops(Transform):
 
             # Add self-loops
             edge_index, edge_attr = add_self_loops(
-                edge_index,
-                edge_attr=edge_attr,
-                num_nodes=num_nodes,
-                fill_value=0)
+                edge_index, edge_attr=edge_attr, num_nodes=num_nodes, fill_value=0
+            )
 
             # Update the edges and attributes
             nag[i_level].edge_index = edge_index

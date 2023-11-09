@@ -5,24 +5,30 @@ from torch_geometric.utils import coalesce, remove_self_loops
 from torch_geometric.nn.pool.consecutive import consecutive_cluster
 from src.utils.tensor import arange_interleave
 from src.utils.geometry import base_vectors_3d
-from src.utils.sparse import sizes_to_pointers, sparse_sort, \
-    sparse_sort_along_direction
-from src.utils.scatter import scatter_pca, scatter_nearest_neighbor, \
-    idx_preserving_mask
+from src.utils.sparse import sizes_to_pointers, sparse_sort, sparse_sort_along_direction
+from src.utils.scatter import scatter_pca, scatter_nearest_neighbor, idx_preserving_mask
 from src.utils.edge import edge_wise_points
 
 __all__ = [
-    'is_pyg_edge_format', 'isolated_nodes', 'edge_to_superedge', 'subedges',
-    'to_trimmed', 'is_trimmed']
+    "is_pyg_edge_format",
+    "isolated_nodes",
+    "edge_to_superedge",
+    "subedges",
+    "to_trimmed",
+    "is_trimmed",
+]
 
 
 def is_pyg_edge_format(edge_index):
     """Check whether edge_index follows pytorch geometric graph edge
     format: a [2, N] torch.LongTensor.
     """
-    return \
-        isinstance(edge_index, torch.Tensor) and edge_index.dim() == 2 \
-        and edge_index.dtype == torch.long and edge_index.shape[0] == 2
+    return (
+        isinstance(edge_index, torch.Tensor)
+        and edge_index.dim() == 2
+        and edge_index.dtype == torch.long
+        and edge_index.shape[0] == 2
+    )
 
 
 def isolated_nodes(edge_index, num_nodes=None):
@@ -72,8 +78,7 @@ def edge_to_superedge(edges, super_index, edge_attr=None):
     # compact inter-cluster edge identifiers for torch_scatter
     # operations. We use 'se' to designate 'superedge' (ie an edge
     # between two clusters)
-    se_id = \
-        se[0] * (max(se[0].max(), se[1].max()) + 1) + se[1]
+    se_id = se[0] * (max(se[0].max(), se[1].max()) + 1) + se[1]
     se_id, perm = consecutive_cluster(se_id)
     se = se[:, perm]
 
@@ -81,19 +86,20 @@ def edge_to_superedge(edges, super_index, edge_attr=None):
 
 
 def subedges(
-        points,
-        index,
-        edge_index,
-        ratio=0.2,
-        k_min=20,
-        cycles=3,
-        pca_on_cpu=True,
-        margin=0.2,
-        halfspace_filter=True,
-        bbox_filter=True,
-        target_pc_flip=True,
-        source_pc_sort=False,
-        chunk_size=None):
+    points,
+    index,
+    edge_index,
+    ratio=0.2,
+    k_min=20,
+    cycles=3,
+    pca_on_cpu=True,
+    margin=0.2,
+    halfspace_filter=True,
+    bbox_filter=True,
+    target_pc_flip=True,
+    source_pc_sort=False,
+    chunk_size=None,
+):
     """Compute the subedges making up each edge between segments. These
     are needed for superedge features computation. This approach relies
     on heuristics to avoid the Delaunay triangulation or any other O(N²)
@@ -152,27 +158,33 @@ def subedges(
     if chunk_size is not None and chunk_size > 0:
 
         # Recursive call on smaller edge_index chunks
-        chunk_size = int(chunk_size) if chunk_size > 1 \
+        chunk_size = (
+            int(chunk_size)
+            if chunk_size > 1
             else math.ceil(edge_index.shape[1] * chunk_size)
+        )
         num_chunks = math.ceil(edge_index.shape[1] / chunk_size)
         out_list = []
         for i_chunk in range(num_chunks):
             start = i_chunk * chunk_size
             end = (i_chunk + 1) * chunk_size
-            out_list.append(subedges(
-                points,
-                index,
-                edge_index[:, start:end],
-                ratio=ratio,
-                k_min=k_min,
-                cycles=cycles,
-                pca_on_cpu=pca_on_cpu,
-                margin=margin,
-                halfspace_filter=halfspace_filter,
-                bbox_filter=bbox_filter,
-                target_pc_flip=target_pc_flip,
-                source_pc_sort=source_pc_sort,
-                chunk_size=None))
+            out_list.append(
+                subedges(
+                    points,
+                    index,
+                    edge_index[:, start:end],
+                    ratio=ratio,
+                    k_min=k_min,
+                    cycles=cycles,
+                    pca_on_cpu=pca_on_cpu,
+                    margin=margin,
+                    halfspace_filter=halfspace_filter,
+                    bbox_filter=bbox_filter,
+                    target_pc_flip=target_pc_flip,
+                    source_pc_sort=source_pc_sort,
+                    chunk_size=None,
+                )
+            )
 
         # Combine outputs
         device = points.device
@@ -188,7 +200,8 @@ def subedges(
     # pair of points will be crucial in finding the other level-0
     # points making up the superedge
     _, edge_anchor_idx = scatter_nearest_neighbor(
-        points, index, edge_index, cycles=cycles)
+        points, index, edge_index, cycles=cycles
+    )
 
     # Compute base vectors based on the anchor points source->target
     # direction
@@ -204,8 +217,9 @@ def subedges(
     # of all the source --or target-- points for each edge. The
     # corresponding variables are prepended with 'S_' and 'T_' for
     # clarity
-    (S_points, S_points_idx, S_uid), (T_points, T_points_idx, T_uid) = \
-        edge_wise_points(points, index, edge_index)
+    (S_points, S_points_idx, S_uid), (T_points, T_points_idx, T_uid) = edge_wise_points(
+        points, index, edge_index
+    )
 
     # Local helper function to convert absolute points coordinates to
     # their local edge coordinate system. This system is defined as
@@ -228,7 +242,7 @@ def subedges(
         X_proj = []
         for i in range(3):
             v = anchor_base[:, i].repeat_interleave(x_size, dim=0)
-            X_proj.append(torch.einsum('nd, nd -> n', X_points, v))
+            X_proj.append(torch.einsum("nd, nd -> n", X_points, v))
 
         return torch.vstack(X_proj).T
 
@@ -280,8 +294,9 @@ def subedges(
             else:
                 X_points, X_points_idx, X_uid = T_points, T_points_idx, T_uid
 
-            in_bbox = (X_points[:, 1:] >= st_min[X_uid]).all(dim=1) & \
-                      (X_points[:, 1:] <= st_max[X_uid]).all(dim=1)
+            in_bbox = (X_points[:, 1:] >= st_min[X_uid]).all(dim=1) & (
+                X_points[:, 1:] <= st_max[X_uid]
+            ).all(dim=1)
             in_bbox = idx_preserving_mask(in_bbox, X_uid)
             in_bbox = torch.where(in_bbox)[0]
 
@@ -361,11 +376,9 @@ def subedges(
     # Local helper to sort points along their first component
     def sort_by_first_component(source=True):
         if source:
-            X_points, X_points_idx, X_uid, x_v = \
-                S_points, S_points_idx, S_uid, s_v
+            X_points, X_points_idx, X_uid, x_v = S_points, S_points_idx, S_uid, s_v
         else:
-            X_points, X_points_idx, X_uid, x_v = \
-                T_points, T_points_idx, T_uid, t_v
+            X_points, X_points_idx, X_uid, x_v = T_points, T_points_idx, T_uid, t_v
 
         # Sort points along the first component
         X_points, perm = sparse_sort_along_direction(X_points, X_uid, x_v)
@@ -383,7 +396,7 @@ def subedges(
     return edge_index, ST_pairs, ST_uid
 
 
-def to_trimmed(edge_index, edge_attr=None, reduce='mean'):
+def to_trimmed(edge_index, edge_attr=None, reduce="mean"):
     """Convert to 'trimmed' graph: same as coalescing with the
     additional constraint that (i, j) and (j, i) edges are duplicates.
 
@@ -410,12 +423,10 @@ def to_trimmed(edge_index, edge_attr=None, reduce='mean'):
     if edge_attr is None:
         edge_index = coalesce(edge_index)
     else:
-        edge_index, edge_attr = coalesce(
-            edge_index, edge_attr=edge_attr, reduce=reduce)
+        edge_index, edge_attr = coalesce(edge_index, edge_attr=edge_attr, reduce=reduce)
 
     # Remove self loops
-    edge_index, edge_attr = remove_self_loops(
-        edge_index, edge_attr=edge_attr)
+    edge_index, edge_attr = remove_self_loops(edge_index, edge_attr=edge_attr)
 
     if edge_attr is None:
         return edge_index

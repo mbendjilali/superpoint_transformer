@@ -1,7 +1,7 @@
 from torch import nn
 
 
-__all__ = ['DropPath']
+__all__ = ["DropPath"]
 
 
 def drop_path(x, drop_prob=0, training=False, scale_by_keep=True):
@@ -10,7 +10,7 @@ def drop_path(x, drop_prob=0, training=False, scale_by_keep=True):
 
     credit: https://github.com/rwightman/pytorch-image-models
     """
-    if drop_prob == 0. or not training:
+    if drop_prob == 0.0 or not training:
         return x
     keep_prob = 1 - drop_prob
     # work with diff dim tensors, not just 2D ConvNets
@@ -28,7 +28,7 @@ class DropPath(nn.Module):
     credit: https://github.com/rwightman/pytorch-image-models
     """
 
-    def __init__(self, drop_prob: float = 0., scale_by_keep: bool = True):
+    def __init__(self, drop_prob: float = 0.0, scale_by_keep: bool = True):
         super().__init__()
         self.drop_prob = drop_prob
         self.scale_by_keep = scale_by_keep
@@ -37,4 +37,4 @@ class DropPath(nn.Module):
         return drop_path(x, self.drop_prob, self.training, self.scale_by_keep)
 
     def extra_repr(self):
-        return f'drop_prob={round(self.drop_prob,3):0.3f}'
+        return f"drop_prob={round(self.drop_prob,3):0.3f}"

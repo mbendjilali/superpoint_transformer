@@ -1,9 +1,8 @@
 from torch import nn
-from src.nn import SelfAttentionBlock, FFN, DropPath, LayerNorm, \
-    INDEX_BASED_NORMS
+from src.nn import SelfAttentionBlock, FFN, DropPath, LayerNorm, INDEX_BASED_NORMS
 
 
-__all__ = ['TransformerBlock']
+__all__ = ["TransformerBlock"]
 
 
 class TransformerBlock(nn.Module):
@@ -22,30 +21,31 @@ class TransformerBlock(nn.Module):
     """
 
     def __init__(
-            self,
-            dim,
-            num_heads=1,
-            qkv_bias=True,
-            qk_dim=8,
-            qk_scale=None,
-            in_rpe_dim=18,
-            ffn_ratio=4,
-            residual_drop=None,
-            attn_drop=None,
-            drop_path=None,
-            activation=nn.LeakyReLU(),
-            norm=LayerNorm,
-            pre_norm=True,
-            no_sa=False,
-            no_ffn=False,
-            k_rpe=False,
-            q_rpe=False,
-            v_rpe=False,
-            k_delta_rpe=False,
-            q_delta_rpe=False,
-            qk_share_rpe=False,
-            q_on_minus_rpe=False,
-            heads_share_rpe=False):
+        self,
+        dim,
+        num_heads=1,
+        qkv_bias=True,
+        qk_dim=8,
+        qk_scale=None,
+        in_rpe_dim=18,
+        ffn_ratio=4,
+        residual_drop=None,
+        attn_drop=None,
+        drop_path=None,
+        activation=nn.LeakyReLU(),
+        norm=LayerNorm,
+        pre_norm=True,
+        no_sa=False,
+        no_ffn=False,
+        k_rpe=False,
+        q_rpe=False,
+        v_rpe=False,
+        k_delta_rpe=False,
+        q_delta_rpe=False,
+        qk_share_rpe=False,
+        q_on_minus_rpe=False,
+        heads_share_rpe=False,
+    ):
         super().__init__()
 
         self.dim = dim
@@ -73,7 +73,8 @@ class TransformerBlock(nn.Module):
                 q_delta_rpe=q_delta_rpe,
                 qk_share_rpe=qk_share_rpe,
                 q_on_minus_rpe=q_on_minus_rpe,
-                heads_share_rpe=heads_share_rpe)
+                heads_share_rpe=heads_share_rpe,
+            )
 
         # Feed-Forward Network residual branch
         self.no_ffn = no_ffn
@@ -84,11 +85,15 @@ class TransformerBlock(nn.Module):
                 dim,
                 hidden_dim=int(dim * ffn_ratio),
                 activation=activation,
-                drop=residual_drop)
+                drop=residual_drop,
+            )
 
         # Optional DropPath module for stochastic depth
-        self.drop_path = DropPath(drop_path) \
-            if drop_path is not None and drop_path > 0 else nn.Identity()
+        self.drop_path = (
+            DropPath(drop_path)
+            if drop_path is not None and drop_path > 0
+            else nn.Identity()
+        )
 
     def forward(self, x, norm_index, edge_index=None, edge_attr=None):
         """
@@ -104,16 +109,17 @@ class TransformerBlock(nn.Module):
             encoding in the self-attention module
         :return:
         """
-        assert x.dim() == 2, 'x should be a 2D Tensor'
-        assert x.is_floating_point(), 'x should be a 2D FloatTensor'
-        assert norm_index.dim() == 1 and norm_index.shape[0] == x.shape[0], \
-            'norm_index should be a 1D LongTensor'
-        assert edge_index is None or \
-               (edge_index.dim() == 2 and not edge_index.is_floating_point()), \
-            'edge_index should be a 2D LongTensor'
-        assert edge_attr is None or \
-               (edge_attr.dim() == 2 and edge_attr.shape[0] == edge_index.shape[1]),\
-            'edge_attr be a 2D LongTensor'
+        assert x.dim() == 2, "x should be a 2D Tensor"
+        assert x.is_floating_point(), "x should be a 2D FloatTensor"
+        assert (
+            norm_index.dim() == 1 and norm_index.shape[0] == x.shape[0]
+        ), "norm_index should be a 1D LongTensor"
+        assert edge_index is None or (
+            edge_index.dim() == 2 and not edge_index.is_floating_point()
+        ), "edge_index should be a 2D LongTensor"
+        assert edge_attr is None or (
+            edge_attr.dim() == 2 and edge_attr.shape[0] == edge_index.shape[1]
+        ), "edge_attr be a 2D LongTensor"
 
         # Keep track of x for the residual connection
         shortcut = x

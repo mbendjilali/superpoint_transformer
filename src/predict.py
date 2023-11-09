@@ -106,10 +106,10 @@ def predict(cfg: DictConfig) -> None:
     log.info("Starting predicting!")
 
     predictions = trainer.predict(
-            model=model,
-            datamodule=datamodule,
-            ckpt_path=cfg.ckpt_path,
-        )  # type: ignore
+        model=model,
+        datamodule=datamodule,
+        ckpt_path=cfg.ckpt_path,
+    )  # type: ignore
 
     return None
 

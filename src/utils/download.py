@@ -51,7 +51,7 @@ def run_command(cmd):
         if output:
             print(output.strip())
     rc = p.poll()
-    print('Done')
-    print('')
+    print("Done")
+    print("")
 
     return rc

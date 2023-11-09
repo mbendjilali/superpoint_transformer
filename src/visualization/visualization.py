@@ -10,13 +10,33 @@ from src.utils.color import *
 
 
 def visualize_3d(
-        input, figsize=1000, width=None, height=None, class_names=None,
-        class_colors=None, voxel=-1, max_points=50000, point_size=3,
-        centroid_size=None, error_color=None, centroids=False, v_edge=False,
-        h_edge=False, h_edge_attr=False, gap=None, select=None, alpha=0.1,
-        alpha_super=None, h_edge_width=None, v_edge_width=None,
-        point_symbol='circle', centroid_symbol='circle', ignore=-1, keys=None,
-        **kwargs):
+    input,
+    figsize=1000,
+    width=None,
+    height=None,
+    class_names=None,
+    class_colors=None,
+    voxel=-1,
+    max_points=50000,
+    point_size=3,
+    centroid_size=None,
+    error_color=None,
+    centroids=False,
+    v_edge=False,
+    h_edge=False,
+    h_edge_attr=False,
+    gap=None,
+    select=None,
+    alpha=0.1,
+    alpha_super=None,
+    h_edge_width=None,
+    v_edge_width=None,
+    point_symbol="circle",
+    centroid_symbol="circle",
+    ignore=-1,
+    keys=None,
+    **kwargs,
+):
     """3D data interactive visualization.
 
     :param input: Data or NAG object
@@ -98,8 +118,8 @@ def visualize_3d(
     if input[input.num_levels - 1].is_sub:
         data_last = input[input.num_levels - 1]
         sub = Cluster(
-            data_last.super_index, torch.arange(data_last.num_nodes),
-            dense=True)
+            data_last.super_index, torch.arange(data_last.num_nodes), dense=True
+        )
         pos = scatter_mean(data_last.pos, data_last.super_index, dim=0)
         input = NAG(input.to_list() + [Data(pos=pos, sub=sub)])
     is_nag = isinstance(input, NAG)
@@ -148,8 +168,7 @@ def visualize_3d(
 
     elif is_nag:
         for i in range(num_levels):
-            input[i].selected = torch.ones(
-                input[i].num_nodes, dtype=torch.bool)
+            input[i].selected = torch.ones(input[i].num_nodes, dtype=torch.bool)
 
     else:
         input.selected = torch.ones(input.num_nodes, dtype=torch.bool)
@@ -172,7 +191,7 @@ def visualize_3d(
     # points indices to be used with Data.select or NAG.select
     if voxel > 0:
         data_temp = SaveNodeIndex()(Data(pos=data_0.pos.clone()))
-        data_temp = GridSampling3D(voxel, mode='last')(data_temp)
+        data_temp = GridSampling3D(voxel, mode="last")(data_temp)
         idx = data_temp[SaveNodeIndex.KEY]
         del data_temp
 
@@ -203,9 +222,12 @@ def visualize_3d(
     layout = go.Layout(
         width=width,
         height=height,
-        scene=dict(aspectmode='data', ),  # preserve aspect ratio
+        scene=dict(
+            aspectmode="data",
+        ),  # preserve aspect ratio
         margin=dict(l=margin, r=margin, b=margin, t=margin),
-        uirevision=True)
+        uirevision=True,
+    )
     fig = go.Figure(layout=layout)
 
     # To keep track of which trace should be seen under which mode
@@ -228,65 +250,78 @@ def visualize_3d(
             x=data_0.pos[data_0.selected, 0],
             y=data_0.pos[data_0.selected, 1],
             z=data_0.pos[data_0.selected, 2],
-            mode='markers',
+            mode="markers",
             marker=dict(
-                symbol=point_symbol,
-                size=point_size,
-                color=colors[data_0.selected]),
-            hoverinfo='x+y+z+text',
+                symbol=point_symbol, size=point_size, color=colors[data_0.selected]
+            ),
+            hoverinfo="x+y+z+text",
             hovertext=None,
             showlegend=False,
-            visible=True, ))
-    trace_modes.append({
-        'Position RGB': {
-            'marker.color': colors[data_0.selected], 'hovertext': None}})
+            visible=True,
+        )
+    )
+    trace_modes.append(
+        {"Position RGB": {"marker.color": colors[data_0.selected], "hovertext": None}}
+    )
 
     fig.add_trace(
         go.Scatter3d(
             x=data_0.pos[~data_0.selected, 0],
             y=data_0.pos[~data_0.selected, 1],
             z=data_0.pos[~data_0.selected, 2],
-            mode='markers',
+            mode="markers",
             marker=dict(
                 symbol=point_symbol,
                 size=point_size,
                 color=colors[~data_0.selected],
-                opacity=alpha),
-            hoverinfo='x+y+z+text',
+                opacity=alpha,
+            ),
+            hoverinfo="x+y+z+text",
             hovertext=None,
             showlegend=False,
-            visible=True, ))
-    trace_modes.append({
-        'Position RGB': {
-            'marker.color': colors[~data_0.selected], 'hovertext': None}})
+            visible=True,
+        )
+    )
+    trace_modes.append(
+        {"Position RGB": {"marker.color": colors[~data_0.selected], "hovertext": None}}
+    )
 
     # Draw a trace for RGB 3D point cloud
     if data_0.rgb is not None:
         colors = data_0.rgb
         colors = rgb_to_plotly_rgb(colors)
-        trace_modes[i_point_trace]['RGB'] = {
-            'marker.color': colors[data_0.selected], 'hovertext': None}
-        trace_modes[i_unselected_point_trace]['RGB'] = {
-            'marker.color': colors[~data_0.selected], 'hovertext': None}
+        trace_modes[i_point_trace]["RGB"] = {
+            "marker.color": colors[data_0.selected],
+            "hovertext": None,
+        }
+        trace_modes[i_unselected_point_trace]["RGB"] = {
+            "marker.color": colors[~data_0.selected],
+            "hovertext": None,
+        }
 
     # Color the points with ground truth semantic labels. If labels are
     # expressed as histograms, keep the most frequent one
     if data_0.y is not None:
         y = data_0.y
         y = y.argmax(1).numpy() if y.dim() == 2 else y.numpy()
-        colors = class_colors[y] if class_colors is not None \
+        colors = (
+            class_colors[y]
+            if class_colors is not None
             else int_to_plotly_rgb(torch.LongTensor(y))
+        )
         if class_names is None:
-            text = np.array([f'Class {i}' for i in range(y.max() + 1)])
+            text = np.array([f"Class {i}" for i in range(y.max() + 1)])
         else:
             text = np.array([str.title(c) for c in class_names])
         text = text[y]
-        trace_modes[i_point_trace]['Labels'] = {
-            'marker.color': colors[data_0.selected],
-            'hovertext': text[data_0.selected]}
-        trace_modes[i_unselected_point_trace]['Labels'] = {
-            'marker.color': colors[~data_0.selected],
-            'hovertext': text[~data_0.selected]}
+        trace_modes[i_point_trace]["Labels"] = {
+            "marker.color": colors[data_0.selected],
+            "hovertext": text[data_0.selected],
+        }
+        trace_modes[i_unselected_point_trace]["Labels"] = {
+            "marker.color": colors[~data_0.selected],
+            "hovertext": text[~data_0.selected],
+        }
 
     # Color the points with predicted semantic labels. If labels are
     # expressed as histograms, keep the most frequent one
@@ -295,25 +330,31 @@ def visualize_3d(
         pred = pred.argmax(1).numpy() if pred.dim() == 2 else pred.numpy()
         colors = class_colors[pred] if class_colors is not None else None
         if class_names is None:
-            text = np.array([f'Class {i}' for i in range(pred.max() + 1)])
+            text = np.array([f"Class {i}" for i in range(pred.max() + 1)])
         else:
             text = np.array([str.title(c) for c in class_names])
         text = text[pred]
-        trace_modes[i_point_trace]['Predictions'] = {
-            'marker.color': colors[data_0.selected],
-            'hovertext': text[data_0.selected]}
-        trace_modes[i_unselected_point_trace]['Predictions'] = {
-            'marker.color': colors[~data_0.selected],
-            'hovertext': text[~data_0.selected]}
+        trace_modes[i_point_trace]["Predictions"] = {
+            "marker.color": colors[data_0.selected],
+            "hovertext": text[data_0.selected],
+        }
+        trace_modes[i_unselected_point_trace]["Predictions"] = {
+            "marker.color": colors[~data_0.selected],
+            "hovertext": text[~data_0.selected],
+        }
 
     # Draw a trace for 3D point cloud features
     if data_0.x is not None:
         colors = feats_to_rgb(data_0.x, normalize=True)
         colors = rgb_to_plotly_rgb(colors)
-        trace_modes[i_point_trace]['Features 3D'] = {
-            'marker.color': colors[data_0.selected], 'hovertext': None}
-        trace_modes[i_unselected_point_trace]['Features 3D'] = {
-            'marker.color': colors[~data_0.selected], 'hovertext': None}
+        trace_modes[i_point_trace]["Features 3D"] = {
+            "marker.color": colors[data_0.selected],
+            "hovertext": None,
+        }
+        trace_modes[i_unselected_point_trace]["Features 3D"] = {
+            "marker.color": colors[~data_0.selected],
+            "hovertext": None,
+        }
 
     # Draw a trace for each key specified in keys
     if keys is None:
@@ -325,19 +366,27 @@ def visualize_3d(
             colors = feats_to_rgb(data_0[key], normalize=True)
             colors = rgb_to_plotly_rgb(colors)
             trace_modes[i_point_trace][str(key).title()] = {
-                'marker.color': colors[data_0.selected], 'hovertext': None}
+                "marker.color": colors[data_0.selected],
+                "hovertext": None,
+            }
             trace_modes[i_unselected_point_trace][str(key).title()] = {
-                'marker.color': colors[~data_0.selected], 'hovertext': None}
+                "marker.color": colors[~data_0.selected],
+                "hovertext": None,
+            }
 
     # Draw a trace for 3D point cloud sampling (for sampling debugging)
-    if 'super_sampling' in data_0.keys:
+    if "super_sampling" in data_0.keys:
         colors = data_0.super_sampling
         colors = int_to_plotly_rgb(colors)
         colors[data_0.super_sampling == -1] = 230
-        trace_modes[i_point_trace]['Super sampling'] = {
-            'marker.color': colors[data_0.selected], 'hovertext': None}
-        trace_modes[i_unselected_point_trace]['Super sampling'] = {
-            'marker.color': colors[~data_0.selected], 'hovertext': None}
+        trace_modes[i_point_trace]["Super sampling"] = {
+            "marker.color": colors[data_0.selected],
+            "hovertext": None,
+        }
+        trace_modes[i_unselected_point_trace]["Super sampling"] = {
+            "marker.color": colors[~data_0.selected],
+            "hovertext": None,
+        }
 
     # Draw a trace for each cluster level
     for i_level, data_i in enumerate(input if is_nag else []):
@@ -360,13 +409,15 @@ def visualize_3d(
         # assumes only it is the trace holding all level-0 points and on
         # which all other colors modes are defined
         colors = int_to_plotly_rgb(super_index)
-        text = np.array([f'↑: {i}' for i in super_index])
-        trace_modes[i_point_trace][f'Level {i_level + 1}'] = {
-            'marker.color': colors[data_0.selected],
-            'hovertext': text[data_0.selected]}
-        trace_modes[i_unselected_point_trace][f'Level {i_level + 1}'] = {
-            'marker.color': colors[~data_0.selected],
-            'hovertext': text[~data_0.selected]}
+        text = np.array([f"↑: {i}" for i in super_index])
+        trace_modes[i_point_trace][f"Level {i_level + 1}"] = {
+            "marker.color": colors[data_0.selected],
+            "hovertext": text[data_0.selected],
+        }
+        trace_modes[i_unselected_point_trace][f"Level {i_level + 1}"] = {
+            "marker.color": colors[~data_0.selected],
+            "hovertext": text[~data_0.selected],
+        }
 
         # Skip to the next level if we do not need to draw the cluster
         # centroids
@@ -406,52 +457,69 @@ def visualize_3d(
                 x=super_pos[input[i_level + 1].selected, 0],
                 y=super_pos[input[i_level + 1].selected, 1],
                 z=super_pos[input[i_level + 1].selected, 2],
-                mode='markers+text',
+                mode="markers+text",
                 marker=dict(
                     symbol=centroid_symbol,
                     size=ball_size,
                     color=colors[input[i_level + 1].selected.numpy()],
                     line_width=min(ball_size / 2, 2),
-                    line_color='black'),
+                    line_color="black",
+                ),
                 textposition="bottom center",
                 textfont=dict(size=16),
                 hovertext=text,
-                hoverinfo='x+y+z+text',
+                hoverinfo="x+y+z+text",
                 showlegend=False,
-                visible=gap is not None, ))
+                visible=gap is not None,
+            )
+        )
 
         fig.add_trace(
             go.Scatter3d(
                 x=super_pos[~input[i_level + 1].selected, 0],
                 y=super_pos[~input[i_level + 1].selected, 1],
                 z=super_pos[~input[i_level + 1].selected, 2],
-                mode='markers+text',
+                mode="markers+text",
                 marker=dict(
                     symbol=centroid_symbol,
                     size=ball_size,
                     color=colors[~input[i_level + 1].selected.numpy()],
                     line_width=min(ball_size / 2, 2),
-                    line_color='black',
-                    opacity=alpha_super),
+                    line_color="black",
+                    opacity=alpha_super,
+                ),
                 textposition="bottom center",
                 textfont=dict(size=16),
                 hovertext=text,
-                hoverinfo='x+y+z+text',
+                hoverinfo="x+y+z+text",
                 showlegend=False,
-                visible=gap is not None, ))
+                visible=gap is not None,
+            )
+        )
 
-        keys = [f'Level {i_level + 1}'] if gap is None \
+        keys = (
+            [f"Level {i_level + 1}"]
+            if gap is None
             else trace_modes[i_point_trace].keys()
+        )
         trace_modes.append(
-            {k: {
-                'marker.color': colors[input[i_level + 1].selected.numpy()],
-                'hovertext': text[input[i_level + 1].selected.numpy()]}
-            for k in keys})
+            {
+                k: {
+                    "marker.color": colors[input[i_level + 1].selected.numpy()],
+                    "hovertext": text[input[i_level + 1].selected.numpy()],
+                }
+                for k in keys
+            }
+        )
         trace_modes.append(
-            {k: {
-                'marker.color': colors[~input[i_level + 1].selected.numpy()],
-                'hovertext': text[~input[i_level + 1].selected.numpy()]}
-            for k in keys})
+            {
+                k: {
+                    "marker.color": colors[~input[i_level + 1].selected.numpy()],
+                    "hovertext": text[~input[i_level + 1].selected.numpy()],
+                }
+                for k in keys
+            }
+        )
 
         if i_level > 0 and v_edge and gap is not None and is_nag:
             # Recover the source and target positions for vertical edges
@@ -471,8 +539,9 @@ def visualize_3d(
             # holding plotly-friendly colors
             colors = data_i.super_index[data_i.selected]
             colors = np.repeat(colors, 3)
-            colorscale = rgb_to_plotly_rgb(torch.from_numpy(int_to_plotly_rgb(
-                torch.arange(colors.max()))))
+            colorscale = rgb_to_plotly_rgb(
+                torch.from_numpy(int_to_plotly_rgb(torch.arange(colors.max())))
+            )
 
             # Since plotly 3D lines do not support opacity, we draw
             # these edges as super thin to limit clutter
@@ -489,14 +558,13 @@ def visualize_3d(
                     x=edges[:, 0],
                     y=edges[:, 1],
                     z=edges[:, 2],
-                    mode='lines',
-                    line=dict(
-                        width=edge_width,
-                        color=colors,
-                        colorscale=colorscale),
-                    hoverinfo='skip',
+                    mode="lines",
+                    line=dict(width=edge_width, color=colors, colorscale=colorscale),
+                    hoverinfo="skip",
                     showlegend=False,
-                    visible=gap is not None, ))
+                    visible=gap is not None,
+                )
+            )
 
             # NB: at this point, trace_modes contains 'Level i+1' as its
             # last key, but we do not want vertical edges to be seen
@@ -521,7 +589,7 @@ def visualize_3d(
         # THE MAX EDGE FEATURE for each undirected edge
         input[i_level + 1].raise_if_edge_keys()
         if se_attr is not None:
-            se, se_attr = to_trimmed(se, edge_attr=se_attr, reduce='max')
+            se, se_attr = to_trimmed(se, edge_attr=se_attr, reduce="max")
         else:
             se = to_trimmed(se)
 
@@ -566,16 +634,22 @@ def visualize_3d(
                 x=edges[selected_edge, 0],
                 y=edges[selected_edge, 1],
                 z=edges[selected_edge, 2],
-                mode='lines',
+                mode="lines",
                 line=dict(
                     width=edge_width,
-                    color=colors[selected_edge],),
-                hoverinfo='skip',
+                    color=colors[selected_edge],
+                ),
+                hoverinfo="skip",
                 showlegend=False,
-                visible=gap is not None, ))
+                visible=gap is not None,
+            )
+        )
 
-        keys = [f'Level {i_level + 1}'] if gap is None \
+        keys = (
+            [f"Level {i_level + 1}"]
+            if gap is None
             else trace_modes[i_point_trace].keys()
+        )
         trace_modes.append({k: {} for k in keys})
 
     # Add a trace for prediction errors. NB: it is important that this
@@ -595,8 +669,7 @@ def visualize_3d(
         indices = np.where((pred != y) & (y != ignore))[0]
 
         # Prepare the color for erroneous points
-        error_color = 'red' if error_color is None \
-            else f'rgb{tuple(error_color)}'
+        error_color = "red" if error_color is None else f"rgb{tuple(error_color)}"
 
         # Draw the erroneous points
         fig.add_trace(
@@ -604,13 +677,16 @@ def visualize_3d(
                 x=data_0.pos[indices, 0],
                 y=data_0.pos[indices, 1],
                 z=data_0.pos[indices, 2],
-                mode='markers',
+                mode="markers",
                 marker=dict(
                     symbol=point_symbol,
                     size=int(point_size * 1.5),
-                    color=error_color, ),
+                    color=error_color,
+                ),
                 showlegend=False,
-                visible=False, ))
+                visible=False,
+            )
+        )
 
     # Recover the keys for all visualization modes, as an ordered set,
     # with respect to their order of first appearance
@@ -623,9 +699,10 @@ def visualize_3d(
         # hover text
         n_traces = len(trace_modes)
         out = {
-            'visible': [False] * (n_traces + has_error),
-            'marker.color': [None] * n_traces,
-            'hovertext': [''] * n_traces}
+            "visible": [False] * (n_traces + has_error),
+            "marker.color": [None] * n_traces,
+            "hovertext": [""] * n_traces,
+        }
 
         # For each trace in 'trace_modes' see if it contains 'mode' and
         # adapt out accordingly
@@ -638,7 +715,7 @@ def visualize_3d(
 
             # Note that a trace will only be visible for its modes
             # declared in trace_modes
-            out['visible'][i_trace] = True
+            out["visible"][i_trace] = True
             for key, val in t_modes[mode].items():
                 out[key][i_trace] = val
 
@@ -647,75 +724,88 @@ def visualize_3d(
     # Create the buttons that will serve for toggling trace visibility
     updatemenus = [
         dict(
-            buttons=[dict(
-                label=mode, method='update', args=trace_update(mode))
-                for mode in modes if mode.lower() != 'errors'],
-            pad={'r': 10, 't': 10},
+            buttons=[
+                dict(label=mode, method="update", args=trace_update(mode))
+                for mode in modes
+                if mode.lower() != "errors"
+            ],
+            pad={"r": 10, "t": 10},
             showactive=True,
-            type='dropdown',
-            direction='right',
-            xanchor='left',
+            type="dropdown",
+            direction="right",
+            xanchor="left",
             x=0.02,
-            yanchor='top',
-            y=1.02, ),]
+            yanchor="top",
+            y=1.02,
+        ),
+    ]
 
     if has_error:
         updatemenus.append(
             dict(
-                buttons=[dict(
-                    method='restyle',
-                    label='Errors',
-                    visible=True,
-                    args=[
-                        {'visible': True, 'marker.color': error_color},
-                        [len(trace_modes)]],
-                    args2=[
-                        {'visible': False,},
-                        [len(trace_modes)]],)],
-                pad={'r': 10, 't': 10},
+                buttons=[
+                    dict(
+                        method="restyle",
+                        label="Errors",
+                        visible=True,
+                        args=[
+                            {"visible": True, "marker.color": error_color},
+                            [len(trace_modes)],
+                        ],
+                        args2=[
+                            {
+                                "visible": False,
+                            },
+                            [len(trace_modes)],
+                        ],
+                    )
+                ],
+                pad={"r": 10, "t": 10},
                 showactive=False,
-                type='buttons',
-                xanchor='left',
+                type="buttons",
+                xanchor="left",
                 x=1.02,
-                yanchor='top',
-                y=1.02, ),)
+                yanchor="top",
+                y=1.02,
+            ),
+        )
 
     fig.update_layout(updatemenus=updatemenus)
 
     # Place the legend on the left
-    fig.update_layout(
-        legend=dict(
-            yanchor="middle",
-            y=0.5,
-            xanchor="right",
-            x=0.99))
+    fig.update_layout(legend=dict(yanchor="middle", y=0.5, xanchor="right", x=0.99))
 
     # Hide all axes and no background
     fig.update_layout(
         scene=dict(
-            xaxis_title='',
-            yaxis_title='',
-            zaxis_title='',
+            xaxis_title="",
+            yaxis_title="",
+            zaxis_title="",
             xaxis=dict(
                 autorange=True,
                 showgrid=False,
-                ticks='',
+                ticks="",
                 showticklabels=False,
-                backgroundcolor="rgba(0, 0, 0, 0)"),
+                backgroundcolor="rgba(0, 0, 0, 0)",
+            ),
             yaxis=dict(
                 autorange=True,
                 showgrid=False,
-                ticks='',
+                ticks="",
                 showticklabels=False,
-                backgroundcolor="rgba(0, 0, 0, 0)"),
+                backgroundcolor="rgba(0, 0, 0, 0)",
+            ),
             zaxis=dict(
                 autorange=True,
                 showgrid=False,
-                ticks='',
+                ticks="",
                 showticklabels=False,
-                backgroundcolor="rgba(0, 0, 0, 0)")))
+                backgroundcolor="rgba(0, 0, 0, 0)",
+            ),
+        )
+    )
 
-    output = {'figure': fig, 'data': data_0}
+    output = {"figure": fig, "data": data_0}
 
     return output
 
@@ -723,10 +813,11 @@ def visualize_3d(
 def figure_html(fig):
     # Save plotly figure to temp HTML
     fig.write_html(
-        '/tmp/fig.html',
-        config={'displayModeBar': False},
-        include_plotlyjs='cdn',
-        full_html=False)
+        "/tmp/fig.html",
+        config={"displayModeBar": False},
+        include_plotlyjs="cdn",
+        full_html=False,
+    )
 
     # Read the HTML
     with open("/tmp/fig.html", "r") as f:
@@ -735,13 +826,13 @@ def figure_html(fig):
     # Center the figure div for cleaner display
     fig_html = fig_html.replace(
         'class="plotly-graph-div" style="',
-        'class="plotly-graph-div" style="margin:0 auto;')
+        'class="plotly-graph-div" style="margin:0 auto;',
+    )
 
     return fig_html
 
 
-def show(
-        input, path=None, title=None, no_output=True, **kwargs):
+def show(input, path=None, title=None, no_output=True, **kwargs):
     """Interactive data visualization.
 
     :param input: Data or NAG object
@@ -759,16 +850,16 @@ def show(
         if osp.isdir(path):
             path = osp.join(path, f"{title}.html")
         else:
-            path = osp.splitext(path)[0] + '.html'
+            path = osp.splitext(path)[0] + ".html"
         fig_html = f'<h1 style="text-align: center;">{title}</h1>'
 
     # Draw a figure for 3D data visualization
     out_3d = visualize_3d(input, **kwargs)
     if no_output:
         if path is None:
-            out_3d['figure'].show(config={'displayModeBar': False})
+            out_3d["figure"].show(config={"displayModeBar": False})
         else:
-            fig_html += figure_html(out_3d['figure'])
+            fig_html += figure_html(out_3d["figure"])
 
     if path is not None:
         with open(path, "w") as f:

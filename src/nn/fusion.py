@@ -2,7 +2,7 @@ import torch
 from torch import nn
 
 
-__all__ = ['CatFusion', 'AdditiveFusion', 'TakeFirstFusion', 'TakeSecondFusion']
+__all__ = ["CatFusion", "AdditiveFusion", "TakeFirstFusion", "TakeSecondFusion"]
 
 
 def fusion_factory(mode):
@@ -10,13 +10,13 @@ def fusion_factory(mode):
 
     :param mode: str
     """
-    if mode in ['cat', 'concatenate', 'concatenation', '|']:
+    if mode in ["cat", "concatenate", "concatenation", "|"]:
         return CatFusion()
-    elif mode in ['residual', 'additive', '+']:
+    elif mode in ["residual", "additive", "+"]:
         return AdditiveFusion()
-    elif mode in ['first', '1', '1st']:
+    elif mode in ["first", "1", "1st"]:
         return TakeFirstFusion()
-    elif mode in ['second', '2', '2nd']:
+    elif mode in ["second", "2", "2nd"]:
         return TakeSecondFusion()
     else:
         raise NotImplementedError(f"Unknown mode='{mode}'")
@@ -54,4 +54,3 @@ class TakeFirstFusion(BaseFusion):
 class TakeSecondFusion(BaseFusion):
     def _func(self, x1, x2):
         return x2
-

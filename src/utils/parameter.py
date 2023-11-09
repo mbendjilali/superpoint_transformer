@@ -1,7 +1,7 @@
 import torch.nn as nn
 
 
-__all__ = ['LearnableParameter']
+__all__ = ["LearnableParameter"]
 
 
 class LearnableParameter(nn.Parameter):
@@ -9,4 +9,3 @@ class LearnableParameter(nn.Parameter):
     position encodings, queries, keys, ...). Using this is useful to use
     custom weight initialization.
     """
-

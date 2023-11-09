@@ -12,10 +12,20 @@ from src.utils.metrics import atomic_to_histogram
 
 
 __all__ = [
-    'Shuffle', 'SaveNodeIndex', 'NAGSaveNodeIndex', 'GridSampling3D',
-    'SampleXYTiling', 'SampleRecursiveMainXYAxisTiling', 'SampleSubNodes',
-    'SampleKHopSubgraphs', 'SampleRadiusSubgraphs', 'SampleSegments',
-    'SampleEdges', 'RestrictSize', 'NAGRestrictSize']
+    "Shuffle",
+    "SaveNodeIndex",
+    "NAGSaveNodeIndex",
+    "GridSampling3D",
+    "SampleXYTiling",
+    "SampleRecursiveMainXYAxisTiling",
+    "SampleSubNodes",
+    "SampleKHopSubgraphs",
+    "SampleRadiusSubgraphs",
+    "SampleSegments",
+    "SampleEdges",
+    "RestrictSize",
+    "NAGRestrictSize",
+]
 
 
 class Shuffle(Transform):
@@ -31,7 +41,7 @@ class SaveNodeIndex(Transform):
     allows tracking nodes from the output back to the input Data object.
     """
 
-    KEY = 'node_id'
+    KEY = "node_id"
 
     def __init__(self, key=None):
         self.KEY = key if key is not None else self.KEY
@@ -45,8 +55,7 @@ class SaveNodeIndex(Transform):
 
 
 class NAGSaveNodeIndex(SaveNodeIndex):
-    """SaveNodeIndex, applied to each NAG level.
-    """
+    """SaveNodeIndex, applied to each NAG level."""
 
     _IN_TYPE = NAG
     _OUT_TYPE = NAG
@@ -59,7 +68,7 @@ class NAGSaveNodeIndex(SaveNodeIndex):
 
 
 class GridSampling3D(Transform):
-    """ Clusters 3D points into voxels with size :attr:`size`.
+    """Clusters 3D points into voxels with size :attr:`size`.
     Parameters
     ----------
     size: float
@@ -89,11 +98,18 @@ class GridSampling3D(Transform):
         Verbosity
     """
 
-    _NO_REPR = ['verbose', 'inplace']
+    _NO_REPR = ["verbose", "inplace"]
 
     def __init__(
-            self, size, quantize_coords=False, mode="mean", hist_key=None,
-            hist_size=None, inplace=False, verbose=False):
+        self,
+        size,
+        quantize_coords=False,
+        mode="mean",
+        hist_key=None,
+        hist_size=None,
+        inplace=False,
+        verbose=False,
+    ):
 
         hist_key = [] if hist_key is None else hist_key
         hist_size = [] if hist_size is None else hist_size
@@ -113,13 +129,15 @@ class GridSampling3D(Transform):
         if verbose:
             print(
                 "If you need to keep track of the position of your points, use "
-                "SaveNodeIndex transform before using GridSampling3D.")
+                "SaveNodeIndex transform before using GridSampling3D."
+            )
 
             if self.mode == "last":
                 print(
                     "The tensors within data will be shuffled each time this "
                     "transform is applied. Be careful that if an attribute "
-                    "doesn't have the size of num_nodes, it won't be shuffled")
+                    "doesn't have the size of num_nodes, it won't be shuffled"
+                )
 
     def _process(self, data_in):
         # In-place option will modify the input Data object directly
@@ -127,14 +145,14 @@ class GridSampling3D(Transform):
 
         # If the aggregation mode is 'last', shuffle the points order.
         # Note that voxelization of point attributes will be stochastic
-        if self.mode == 'last':
+        if self.mode == "last":
             data = Shuffle()(data)
 
         # Convert point coordinates to the voxel grid coordinates
         coords = torch.round((data.pos) / self.grid_size)
 
         # Match each point with a voxel identifier
-        if 'batch' not in data:
+        if "batch" not in data:
             cluster = grid_cluster(coords, torch.ones(3, device=coords.device))
         else:
             cluster = voxel_grid(coords, data.batch, 1)
@@ -148,7 +166,8 @@ class GridSampling3D(Transform):
 
         # Perform voxel aggregation
         data = _group_data(
-            data, cluster, unique_pos_indices, mode=self.mode, bins=self.bins)
+            data, cluster, unique_pos_indices, mode=self.mode, bins=self.bins
+        )
 
         # Optionally convert quantize the coordinates. This is useful
         # for sparse convolution models
@@ -162,8 +181,8 @@ class GridSampling3D(Transform):
 
 
 def _group_data(
-        data, cluster=None, unique_pos_indices=None, mode="mean",
-        skip_keys=None, bins={}):
+    data, cluster=None, unique_pos_indices=None, mode="mean", skip_keys=None, bins={}
+):
     """Group data based on indices in cluster. The option ``mode``
     controls how data gets aggregated within each cluster.
 
@@ -194,20 +213,20 @@ def _group_data(
     skip_keys = sanitize_keys(skip_keys, default=[])
 
     # Keys for which voxel aggregation will be based on majority voting
-    _VOTING_KEYS = ['y', 'instance_labels', 'super_index', 'is_val']
+    _VOTING_KEYS = ["y", "instance_labels", "super_index", "is_val"]
 
     # Keys for which voxel aggregation will be based on majority voting
-    _LAST_KEYS = ['batch', SaveNodeIndex.KEY]
+    _LAST_KEYS = ["batch", SaveNodeIndex.KEY]
 
     # Supported mode for aggregation
-    _MODES = ['mean', 'last']
+    _MODES = ["mean", "last"]
     assert mode in _MODES
     if mode == "mean" and cluster is None:
-        raise ValueError(
-            "In mean mode the cluster argument needs to be specified")
+        raise ValueError("In mean mode the cluster argument needs to be specified")
     if mode == "last" and unique_pos_indices is None:
         raise ValueError(
-            "In last mode the unique_pos_indices argument needs to be specified")
+            "In last mode the unique_pos_indices argument needs to be specified"
+        )
 
     # Save the number of nodes here because the subsequent in-place
     # modifications will affect it
@@ -221,10 +240,10 @@ def _group_data(
             continue
 
         # Edges cannot be aggregated
-        if bool(re.search('edge', key)):
+        if bool(re.search("edge", key)):
             raise ValueError("Edges not supported. Wrong data type.")
 
-        if key == 'sub':
+        if key == "sub":
             raise ValueError("'sub' not supported. Wrong data type.")
 
         # Only torch.Tensor attributes of size Data.num_nodes are
@@ -235,7 +254,7 @@ def _group_data(
         # For 'last' mode, use unique_pos_indices to pick values
         # from a single point within each cluster. The same behavior
         # is expected for the _LAST_KEYS
-        if mode == 'last' or key in _LAST_KEYS:
+        if mode == "last" or key in _LAST_KEYS:
             data[key] = item[unique_pos_indices]
             continue
 
@@ -319,7 +338,7 @@ class SampleRecursiveMainXYAxisTiling(Transform):
     """
 
     def __init__(self, x=0, steps=2):
-        assert 0 <= x < 2 ** steps
+        assert 0 <= x < 2**steps
         self.steps = steps
         self.x = x
 
@@ -340,7 +359,7 @@ class SampleRecursiveMainXYAxisTiling(Transform):
         path = bin(self.x)[2:]
 
         # Prepend with zeros to build path of length steps
-        path = (self.steps - len(path)) * '0' + path
+        path = (self.steps - len(path)) * "0" + path
 
         # Convert string of 0 and 1 to list of booleans
         return [bool(int(i)) for i in path]
@@ -423,8 +442,7 @@ class SampleSubNodes(Transform):
     _IN_TYPE = NAG
     _OUT_TYPE = NAG
 
-    def __init__(
-            self, high=1, low=0, n_max=32, n_min=16, mask=None):
+    def __init__(self, high=1, low=0, n_max=32, n_min=16, mask=None):
         assert isinstance(high, int)
         assert isinstance(low, int)
         assert isinstance(n_max, int)
@@ -437,8 +455,12 @@ class SampleSubNodes(Transform):
 
     def _process(self, nag):
         idx = nag.get_sampling(
-            high=self.high, low=self.low, n_max=self.n_max, n_min=self.n_min,
-            return_pointers=False)
+            high=self.high,
+            low=self.low,
+            n_max=self.n_max,
+            n_min=self.n_min,
+            return_pointers=False,
+        )
         return nag.select(self.low, idx)
 
 
@@ -469,8 +491,11 @@ class SampleSegments(Transform):
     _OUT_TYPE = NAG
 
     def __init__(self, ratio=0.2, by_size=False, by_class=False):
-        assert isinstance(ratio, list) and all(0 <= r < 1 for r in ratio) \
-               or (0 <= ratio < 1)
+        assert (
+            isinstance(ratio, list)
+            and all(0 <= r < 1 for r in ratio)
+            or (0 <= ratio < 1)
+        )
         self.ratio = ratio
         self.by_size = by_size
         self.by_class = by_class
@@ -503,7 +528,7 @@ class SampleSegments(Transform):
             # the sampling
             if self.by_size:
                 node_size = nag.get_sub_size(i_level, low=0)
-                size_weights = node_size ** 0.333
+                size_weights = node_size**0.333
                 size_weights /= size_weights.sum()
                 weights += size_weights
 
@@ -575,8 +600,14 @@ class BaseSampleSubgraphs(Transform):
     _OUT_TYPE = NAG
 
     def __init__(
-            self, i_level=1, k=1, by_size=False, by_class=False,
-            use_batch=True, disjoint=True):
+        self,
+        i_level=1,
+        k=1,
+        by_size=False,
+        by_class=False,
+        use_batch=True,
+        disjoint=True,
+    ):
         self.i_level = i_level
         self.k = k
         self.by_size = by_size
@@ -593,10 +624,10 @@ class BaseSampleSubgraphs(Transform):
             return nag
 
         # Initialization
-        i_level = self.i_level if 0 <= self.i_level < nag.num_levels \
-            else nag.num_levels - 1
-        k = self.k if self.k < nag[i_level].num_nodes \
-            else 1
+        i_level = (
+            self.i_level if 0 <= self.i_level < nag.num_levels else nag.num_levels - 1
+        )
+        k = self.k if self.k < nag[i_level].num_nodes else 1
 
         # Initialize all segments with the same weights
         weights = torch.ones(nag[i_level].num_nodes, device=device)
@@ -606,7 +637,7 @@ class BaseSampleSubgraphs(Transform):
         # the sampling
         if self.by_size:
             node_size = nag.get_sub_size(i_level, low=0)
-            size_weights = node_size ** 0.333
+            size_weights = node_size**0.333
             size_weights /= size_weights.sum()
             weights += size_weights
 
@@ -630,12 +661,12 @@ class BaseSampleSubgraphs(Transform):
         # Generate sampling indices. If the Data object has a 'batch'
         # attribute and 'self.use_batch', use it to guide the sampling
         # across the batches
-        batch = getattr(nag[i_level], 'batch', None)
+        batch = getattr(nag[i_level], "batch", None)
         if batch is not None and self.use_batch:
             idx_list = []
             num_batch = batch.max() + 1
             num_sampled = 0
-            k_batch = torch.div(k, num_batch, rounding_mode='floor')
+            k_batch = torch.div(k, num_batch, rounding_mode="floor")
             k_batch = k_batch.maximum(torch.ones_like(k_batch))
             for i_batch in range(num_batch):
 
@@ -647,8 +678,7 @@ class BaseSampleSubgraphs(Transform):
 
                 # Compute the sampling indices for the NAG at hand
                 mask = torch.where(i_batch == batch)[0]
-                idx_ = torch.multinomial(
-                    weights[mask], k_batch, replacement=False)
+                idx_ = torch.multinomial(weights[mask], k_batch, replacement=False)
                 idx_list.append(mask[idx_])
 
                 # Update number of sampled subgraphs
@@ -667,8 +697,9 @@ class BaseSampleSubgraphs(Transform):
             return self._sample_subgraphs(nag, i_level, idx)
 
         # All sampled subgraphs are disjoint
-        return NAGBatch.from_nag_list([
-            self._sample_subgraphs(nag, i_level, i.view(1)) for i in idx])
+        return NAGBatch.from_nag_list(
+            [self._sample_subgraphs(nag, i_level, i.view(1)) for i in idx]
+        )
 
     def _sample_subgraphs(self, nag, i_level, idx):
         raise NotImplementedError
@@ -716,17 +747,31 @@ class SampleKHopSubgraphs(BaseSampleSubgraphs):
         subgraphs sampled in the same NAG will be long the same NAG.
         Hence, if two subgraphs share a node, they will be connected
     """
+
     def __init__(
-            self, hops=2, i_level=1, k=1, by_size=False, by_class=False,
-            use_batch=True, disjoint=False):
+        self,
+        hops=2,
+        i_level=1,
+        k=1,
+        by_size=False,
+        by_class=False,
+        use_batch=True,
+        disjoint=False,
+    ):
         super().__init__(
-            i_level=i_level, k=k, by_size=by_size, by_class=by_class,
-            use_batch=use_batch, disjoint=disjoint)
+            i_level=i_level,
+            k=k,
+            by_size=by_size,
+            by_class=by_class,
+            use_batch=use_batch,
+            disjoint=disjoint,
+        )
         self.hops = hops
 
     def _sample_subgraphs(self, nag, i_level, idx):
-        assert nag[i_level].has_edges, \
-            "Expected Data object to have edges for k-hop subgraph sampling"
+        assert nag[
+            i_level
+        ].has_edges, "Expected Data object to have edges for k-hop subgraph sampling"
 
         # Convert the graph to undirected graph. This is needed because
         # it is likely that the graph has been trimmed (see
@@ -736,7 +781,8 @@ class SampleKHopSubgraphs(BaseSampleSubgraphs):
 
         # Search the k-hop neighbors of the sampled nodes
         idx = k_hop_subgraph(
-            idx, self.hops, edge_index, num_nodes=nag[i_level].num_nodes)[0]
+            idx, self.hops, edge_index, num_nodes=nag[i_level].num_nodes
+        )[0]
 
         # Select the nodes and update the NAG structure accordingly
         return nag.select(i_level, idx)
@@ -782,20 +828,33 @@ class SampleRadiusSubgraphs(BaseSampleSubgraphs):
         subgraphs sampled in the same NAG will be long the same NAG.
         Hence, if two subgraphs share a node, they will be connected
     """
+
     def __init__(
-            self, r=2, i_level=1, k=1, by_size=False, by_class=False,
-            use_batch=True, disjoint=False):
+        self,
+        r=2,
+        i_level=1,
+        k=1,
+        by_size=False,
+        by_class=False,
+        use_batch=True,
+        disjoint=False,
+    ):
         super().__init__(
-            i_level=i_level, k=k, by_size=by_size, by_class=by_class,
-            use_batch=use_batch, disjoint=disjoint)
+            i_level=i_level,
+            k=k,
+            by_size=by_size,
+            by_class=by_class,
+            use_batch=use_batch,
+            disjoint=disjoint,
+        )
         self.r = r
 
     def _sample_subgraphs(self, nag, i_level, idx):
-        # Skip if r<=0. This may be useful to turn this transform into 
+        # Skip if r<=0. This may be useful to turn this transform into
         # an Identity, if need be
         if self.r <= 0:
             return nag
-        
+
         # Neighbors are searched using the node coordinates. This is not
         # the optimal search for cluster-cluster distances, but is the
         # fastest for our needs here. If need be, one could make this
@@ -853,7 +912,7 @@ class SampleEdges(Transform):
     _IN_TYPE = NAG
     _OUT_TYPE = NAG
 
-    def __init__(self, level='1+', n_min=16, n_max=32):
+    def __init__(self, level="1+", n_min=16, n_max=32):
         assert isinstance(level, (int, str))
         assert isinstance(n_min, (int, list))
         assert isinstance(n_max, (int, list))
@@ -866,36 +925,50 @@ class SampleEdges(Transform):
         # If 'level' is an int, we only need to process a single level
         if isinstance(self.level, int):
             nag._list[self.level] = self._process_single_level(
-                nag[self.level], self.n_min, self.n_max)
+                nag[self.level], self.n_min, self.n_max
+            )
             return nag
 
         # If 'level' covers multiple levels, iteratively process levels
         level_n_min = [-1] * nag.num_levels
         level_n_max = [-1] * nag.num_levels
 
-        if self.level == 'all':
-            level_n_min = self.n_min if isinstance(self.n_min, list) \
+        if self.level == "all":
+            level_n_min = (
+                self.n_min
+                if isinstance(self.n_min, list)
                 else [self.n_min] * nag.num_levels
-            level_n_max = self.n_max if isinstance(self.n_max, list) \
+            )
+            level_n_max = (
+                self.n_max
+                if isinstance(self.n_max, list)
                 else [self.n_max] * nag.num_levels
-        elif self.level[-1] == '+':
+            )
+        elif self.level[-1] == "+":
             i = int(self.level[:-1])
-            level_n_min[i:] = self.n_min if isinstance(self.n_min, list) \
+            level_n_min[i:] = (
+                self.n_min
+                if isinstance(self.n_min, list)
                 else [self.n_min] * (nag.num_levels - i)
-            level_n_max[i:] = self.n_max if isinstance(self.n_max, list) \
+            )
+            level_n_max[i:] = (
+                self.n_max
+                if isinstance(self.n_max, list)
                 else [self.n_max] * (nag.num_levels - i)
-        elif self.level[-1] == '-':
+            )
+        elif self.level[-1] == "-":
             i = int(self.level[:-1])
-            level_n_min[:i] = self.n_min if isinstance(self.n_min, list) \
-                else [self.n_min] * i
-            level_n_max[:i] = self.n_max if isinstance(self.n_max, list) \
-                else [self.n_max] * i
+            level_n_min[:i] = (
+                self.n_min if isinstance(self.n_min, list) else [self.n_min] * i
+            )
+            level_n_max[:i] = (
+                self.n_max if isinstance(self.n_max, list) else [self.n_max] * i
+            )
         else:
-            raise ValueError(f'Unsupported level={self.level}')
+            raise ValueError(f"Unsupported level={self.level}")
 
         for i_level, (n_min, n_max) in enumerate(zip(level_n_min, level_n_max)):
-            nag._list[i_level] = self._process_single_level(
-                nag[i_level], n_min, n_max)
+            nag._list[i_level] = self._process_single_level(nag[i_level], n_min, n_max)
 
         return nag
 
@@ -909,7 +982,8 @@ class SampleEdges(Transform):
         # Compute a sampling for the edges, based on the source node
         # they belong to
         idx = sparse_sample(
-            data.edge_index[0], n_max=n_max, n_min=n_min, return_pointers=False)
+            data.edge_index[0], n_max=n_max, n_min=n_min, return_pointers=False
+        )
 
         # Select edges and their attributes, if relevant
         data.edge_index = data.edge_index[:, idx]
@@ -973,7 +1047,7 @@ class NAGRestrictSize(Transform):
     _IN_TYPE = NAG
     _OUT_TYPE = NAG
 
-    def __init__(self, level='1+', num_nodes=0, num_edges=0):
+    def __init__(self, level="1+", num_nodes=0, num_edges=0):
         assert isinstance(level, (int, str))
         assert isinstance(num_nodes, (int, list))
         assert isinstance(num_edges, (int, list))
@@ -985,41 +1059,53 @@ class NAGRestrictSize(Transform):
 
         # If 'level' is an int, we only need to process a single level
         if isinstance(self.level, int):
-            return self._restrict_level(
-                nag, self.level, self.num_nodes, self.num_edges)
+            return self._restrict_level(nag, self.level, self.num_nodes, self.num_edges)
 
         # If 'level' covers multiple levels, iteratively process levels
         level_num_nodes = [-1] * nag.num_levels
         level_num_edges = [-1] * nag.num_levels
 
-        if self.level == 'all':
-            level_num_nodes = self.num_nodes \
-                if isinstance(self.num_nodes, list) \
+        if self.level == "all":
+            level_num_nodes = (
+                self.num_nodes
+                if isinstance(self.num_nodes, list)
                 else [self.num_nodes] * nag.num_levels
-            level_num_edges = self.num_edges \
-                if isinstance(self.num_edges, list) \
+            )
+            level_num_edges = (
+                self.num_edges
+                if isinstance(self.num_edges, list)
                 else [self.num_edges] * nag.num_levels
-        elif self.level[-1] == '+':
+            )
+        elif self.level[-1] == "+":
             i = int(self.level[:-1])
-            level_num_nodes[i:] = self.num_nodes \
-                if isinstance(self.num_nodes, list) \
+            level_num_nodes[i:] = (
+                self.num_nodes
+                if isinstance(self.num_nodes, list)
                 else [self.num_nodes] * (nag.num_levels - i)
-            level_num_edges[i:] = self.num_edges \
-                if isinstance(self.num_edges, list) \
+            )
+            level_num_edges[i:] = (
+                self.num_edges
+                if isinstance(self.num_edges, list)
                 else [self.num_edges] * (nag.num_levels - i)
-        elif self.level[-1] == '-':
+            )
+        elif self.level[-1] == "-":
             i = int(self.level[:-1])
-            level_num_nodes[:i] = self.num_nodes \
-                if isinstance(self.num_nodes, list) \
+            level_num_nodes[:i] = (
+                self.num_nodes
+                if isinstance(self.num_nodes, list)
                 else [self.num_nodes] * i
-            level_num_edges[:i] = self.num_edges \
-                if isinstance(self.num_edges, list) \
+            )
+            level_num_edges[:i] = (
+                self.num_edges
+                if isinstance(self.num_edges, list)
                 else [self.num_edges] * i
+            )
         else:
-            raise ValueError(f'Unsupported level={self.level}')
+            raise ValueError(f"Unsupported level={self.level}")
 
-        for i_level, (num_nodes, num_edges) in enumerate(zip(
-                level_num_nodes, level_num_edges)):
+        for i_level, (num_nodes, num_edges) in enumerate(
+            zip(level_num_nodes, level_num_edges)
+        ):
             nag = self._restrict_level(nag, i_level, num_nodes, num_edges)
 
         return nag

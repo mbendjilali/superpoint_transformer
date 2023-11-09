@@ -32,7 +32,8 @@ ROOM_TYPES = {
     "storage": 7,
     "lounge": 8,
     "lobby": 9,
-    "openspace": 10}
+    "openspace": 10,
+}
 
 VALIDATION_ROOMS = [
     "hallway_1",
@@ -50,7 +51,8 @@ VALIDATION_ROOMS = [
     "storage_1",
     "storage_5",
     "conferenceRoom_2",
-    "auditorium_1"]
+    "auditorium_1",
+]
 
 ROOMS = {
     "Area_1": [
@@ -97,7 +99,8 @@ ROOMS = {
         "office_8",
         "office_9",
         "pantry_1",
-        "WC_1"],
+        "WC_1",
+    ],
     "Area_2": [
         "auditorium_1",
         "auditorium_2",
@@ -138,7 +141,8 @@ ROOMS = {
         "storage_8",
         "storage_9",
         "WC_1",
-        "WC_2"],
+        "WC_2",
+    ],
     "Area_3": [
         "conferenceRoom_1",
         "hallway_1",
@@ -162,7 +166,8 @@ ROOMS = {
         "storage_1",
         "storage_2",
         "WC_1",
-        "WC_2"],
+        "WC_2",
+    ],
     "Area_4": [
         "conferenceRoom_1",
         "conferenceRoom_2",
@@ -212,7 +217,8 @@ ROOMS = {
         "WC_1",
         "WC_2",
         "WC_3",
-        "WC_4"],
+        "WC_4",
+    ],
     "Area_5": [
         "conferenceRoom_1",
         "conferenceRoom_2",
@@ -281,7 +287,8 @@ ROOMS = {
         "storage_3",
         "storage_4",
         "WC_1",
-        "WC_2"],
+        "WC_2",
+    ],
     "Area_6": [
         "conferenceRoom_1",
         "copyRoom_1",
@@ -330,7 +337,9 @@ ROOMS = {
         "office_8",
         "office_9",
         "openspace_1",
-        "pantry_1"]}
+        "pantry_1",
+    ],
+}
 
 
 ########################################################################
@@ -354,27 +363,32 @@ INV_OBJECT_LABEL = {
     9: "bookcase",
     10: "sofa",
     11: "board",
-    12: "clutter"}
+    12: "clutter",
+}
 
-CLASS_NAMES = [INV_OBJECT_LABEL[i] for i in range(S3DIS_NUM_CLASSES)] + ['ignored']
+CLASS_NAMES = [INV_OBJECT_LABEL[i] for i in range(S3DIS_NUM_CLASSES)] + ["ignored"]
 
-CLASS_COLORS = np.asarray([
-    [233, 229, 107],  # 'ceiling'   ->  yellow
-    [95, 156, 196],   # 'floor'     ->  blue
-    [179, 116, 81],   # 'wall'      ->  brown
-    [241, 149, 131],  # 'beam'      ->  salmon
-    [81, 163, 148],   # 'column'    ->  bluegreen
-    [77, 174, 84],    # 'window'    ->  bright green
-    [108, 135, 75],   # 'door'      ->  dark green
-    [41, 49, 101],    # 'chair'     ->  darkblue
-    [79, 79, 76],     # 'table'     ->  dark grey
-    [223, 52, 52],    # 'bookcase'  ->  red
-    [89, 47, 95],     # 'sofa'      ->  purple
-    [81, 109, 114],   # 'board'     ->  grey
-    [233, 233, 229],  # 'clutter'   ->  light grey
-    [0, 0, 0]])       # unlabelled  -> black
+CLASS_COLORS = np.asarray(
+    [
+        [233, 229, 107],  # 'ceiling'   ->  yellow
+        [95, 156, 196],  # 'floor'     ->  blue
+        [179, 116, 81],  # 'wall'      ->  brown
+        [241, 149, 131],  # 'beam'      ->  salmon
+        [81, 163, 148],  # 'column'    ->  bluegreen
+        [77, 174, 84],  # 'window'    ->  bright green
+        [108, 135, 75],  # 'door'      ->  dark green
+        [41, 49, 101],  # 'chair'     ->  darkblue
+        [79, 79, 76],  # 'table'     ->  dark grey
+        [223, 52, 52],  # 'bookcase'  ->  red
+        [89, 47, 95],  # 'sofa'      ->  purple
+        [81, 109, 114],  # 'board'     ->  grey
+        [233, 233, 229],  # 'clutter'   ->  light grey
+        [0, 0, 0],
+    ]
+)  # unlabelled  -> black
 
 OBJECT_LABEL = {name: i for i, name in INV_OBJECT_LABEL.items()}
+
 
 def object_name_to_label(object_class):
     """Convert from object name to int label. By default, if an unknown

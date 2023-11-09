@@ -4,8 +4,14 @@ from colorhash import ColorHash
 
 
 __all__ = [
-    'to_float_rgb', 'to_byte_rgb', 'rgb_to_plotly_rgb', 'int_to_plotly_rgb',
-    'hex_to_tensor', 'feats_to_rgb', 'identity_PCA']
+    "to_float_rgb",
+    "to_byte_rgb",
+    "rgb_to_plotly_rgb",
+    "int_to_plotly_rgb",
+    "hex_to_tensor",
+    "feats_to_rgb",
+    "identity_PCA",
+]
 
 
 def to_float_rgb(rgb):
@@ -38,8 +44,9 @@ def rgb_to_plotly_rgb(rgb, alpha=None):
         rgb = (rgb * 255).long().numpy()
     else:
         raise ValueError(
-            f'Not sure how to deal with RGB of dtype={rgb.dtype} and '
-            f'max={rgb.max()}')
+            f"Not sure how to deal with RGB of dtype={rgb.dtype} and "
+            f"max={rgb.max()}"
+        )
 
     if alpha is None:
         return np.array([f"rgb{tuple(x)}" for x in rgb])
@@ -52,8 +59,7 @@ def rgb_to_plotly_rgb(rgb, alpha=None):
     assert alpha.ndim == 1
     assert alpha.shape[0] == rgb.shape[0]
 
-    return np.array([
-        f"rgba({x[0]}, {x[1]}, {x[1]}, {a})" for x, a in zip(rgb, alpha)])
+    return np.array([f"rgba({x[0]}, {x[1]}, {x[1]}, {a})" for x, a in zip(rgb, alpha)])
 
 
 def int_to_plotly_rgb(x):
@@ -69,8 +75,8 @@ def int_to_plotly_rgb(x):
 
 
 def hex_to_tensor(h):
-    h = h.lstrip('#')
-    rgb = tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+    h = h.lstrip("#")
+    rgb = tuple(int(h[i : i + 2], 16) for i in (0, 2, 4))
     return to_float_rgb(torch.tensor(rgb))
 
 

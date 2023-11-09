@@ -7,13 +7,16 @@ from src.utils.scatter import scatter_nearest_neighbor
 
 
 __all__ = [
-    'knn_1', 'knn_2', 'inliers_split', 'outliers_split',
-    'inliers_outliers_splits', 'cluster_radius_nn']
+    "knn_1",
+    "knn_2",
+    "inliers_split",
+    "outliers_split",
+    "inliers_outliers_splits",
+    "cluster_radius_nn",
+]
 
 
-def knn_1(
-        xyz, k, r_max=1, oversample=False, self_is_neighbor=False,
-        verbose=False):
+def knn_1(xyz, k, r_max=1, oversample=False, self_is_neighbor=False, verbose=False):
     """Search k-NN inside for a 3D point cloud xyz. This search differs
     from `knn_2` in that it operates on a single cloud input (search and
     query are the same) and it allows oversampling the neighbors when
@@ -34,7 +37,8 @@ def knn_1(
     # KNN on GPU. Actual neighbor search now
     k_search = k if self_is_neighbor else k + 1
     distances, neighbors, _, _ = frnn.frnn_grid_points(
-        xyz_query, xyz_search, K=k_search, r=r_max)
+        xyz_query, xyz_search, K=k_search, r=r_max
+    )
 
     # Remove each point from its own neighborhood
     neighbors = neighbors[0] if self_is_neighbor else neighbors[0][:, 1:]
@@ -42,8 +46,7 @@ def knn_1(
 
     # Oversample the neighborhoods where less than k points were found
     if oversample:
-        neighbors, distances = oversample_partial_neighborhoods(
-            neighbors, distances, k)
+        neighbors, distances = oversample_partial_neighborhoods(neighbors, distances, k)
 
     # Restore the neighbors and distances to the input device
     if neighbors.device != device:
@@ -64,14 +67,14 @@ def knn_1(
     print(
         f"\nWarning: {n_partial}/{num_nodes} points have partial "
         f"neighborhoods and {n_empty}/{num_nodes} have empty "
-        f"neighborhoods (missing neighbors are indicated by -1 indices).")
+        f"neighborhoods (missing neighbors are indicated by -1 indices)."
+    )
 
     return neighbors, distances
 
 
 def knn_2(x_search, x_query, k, r_max=1):
-    """Search k-NN of x_query inside x_search, within radius `r_max`.
-    """
+    """Search k-NN of x_query inside x_search, within radius `r_max`."""
     assert isinstance(x_search, torch.Tensor)
     assert isinstance(x_query, torch.Tensor)
     assert k >= 1
@@ -89,7 +92,8 @@ def knn_2(x_search, x_query, k, r_max=1):
 
     # KNN on GPU. Actual neighbor search now
     distances, neighbors, _, _ = frnn.frnn_grid_points(
-        xyz_query, xyz_search, K=k, r=r_max)
+        xyz_query, xyz_search, K=k, r=r_max
+    )
 
     # Remove each point from its own neighborhood
     neighbors = neighbors[0].to(device)
@@ -101,8 +105,7 @@ def knn_2(x_search, x_query, k, r_max=1):
     return neighbors, distances
 
 
-def inliers_split(
-        xyz_query, xyz_search, k_min, r_max=1, recursive=False, q_in_s=False):
+def inliers_split(xyz_query, xyz_search, k_min, r_max=1, recursive=False, q_in_s=False):
     """Optionally recursive inlier search. The `xyz_query` and
     `xyz_search`. Search for points with less than `k_min` neighbors
     within a radius of `r_max`.
@@ -114,12 +117,13 @@ def inliers_split(
     `r_max` whose points would all recursively end up as outliers.
     """
     return inliers_outliers_splits(
-        xyz_query, xyz_search, k_min, r_max=r_max, recursive=recursive,
-        q_in_s=q_in_s)[0]
+        xyz_query, xyz_search, k_min, r_max=r_max, recursive=recursive, q_in_s=q_in_s
+    )[0]
 
 
 def outliers_split(
-        xyz_query, xyz_search, k_min, r_max=1, recursive=False, q_in_s=False):
+    xyz_query, xyz_search, k_min, r_max=1, recursive=False, q_in_s=False
+):
     """Optionally recursive outlier search. The `xyz_query` and
     `xyz_search`. Search for points with less than `k_min` neighbors
     within a radius of `r_max`.
@@ -131,12 +135,13 @@ def outliers_split(
     `r_max` whose points would all recursively end up as outliers.
     """
     return inliers_outliers_splits(
-        xyz_query, xyz_search, k_min, r_max=r_max, recursive=recursive,
-        q_in_s=q_in_s)[1]
+        xyz_query, xyz_search, k_min, r_max=r_max, recursive=recursive, q_in_s=q_in_s
+    )[1]
 
 
 def inliers_outliers_splits(
-        xyz_query, xyz_search, k_min, r_max=1, recursive=False, q_in_s=False):
+    xyz_query, xyz_search, k_min, r_max=1, recursive=False, q_in_s=False
+):
     """Optionally recursive outlier search. The `xyz_query` and
     `xyz_search`. Search for points with less than `k_min` neighbors
     within a radius of `r_max`.
@@ -153,8 +158,9 @@ def inliers_outliers_splits(
     xyz_search = xyz_search.view(1, -1, 3).cuda()
 
     # KNN on GPU. Actual neighbor search now
-    neighbors = frnn.frnn_grid_points(
-        xyz_query, xyz_search, K=k_min + q_in_s, r=r_max)[1]
+    neighbors = frnn.frnn_grid_points(xyz_query, xyz_search, K=k_min + q_in_s, r=r_max)[
+        1
+    ]
 
     # If the Query points are included in the Search points, remove each
     # point from its own neighborhood
@@ -179,7 +185,8 @@ def inliers_outliers_splits(
     # Identify the points affected by the removal of the outliers. Those
     # inliers are potential outliers
     idx_potential = torch.where(
-        torch.isin(neighbors[idx_inliers], idx_outliers).any(dim=1))[0]
+        torch.isin(neighbors[idx_inliers], idx_outliers).any(dim=1)
+    )[0]
 
     # Exit here if there are no potential new outliers among the inliers
     if idx_potential.shape[0] == 0:
@@ -189,8 +196,8 @@ def inliers_outliers_splits(
     xyz_query_sub = xyz_query[0, idx_inliers[idx_potential]]
     xyz_search_sub = xyz_search[0, idx_inliers]
     idx_outliers_sub, idx_inliers_sub = inliers_outliers_splits(
-        xyz_query_sub, xyz_search_sub, k_min, r_max=r_max, recursive=True,
-        q_in_s=True)
+        xyz_query_sub, xyz_search_sub, k_min, r_max=r_max, recursive=True, q_in_s=True
+    )
 
     # Update the outliers mask
     mask_outliers[idx_inliers[idx_potential][idx_outliers_sub]] = True
@@ -242,27 +249,25 @@ def oversample_partial_neighborhoods(neighbors, distances, k):
 
     # For each missing neighbor, compute the size of the discrete set to
     # oversample from.
-    n_valid = n_found_nn[idx_partial].repeat_interleave(
-        k - n_found_nn[idx_partial])
+    n_valid = n_found_nn[idx_partial].repeat_interleave(k - n_found_nn[idx_partial])
 
     # Compute the oversampling row indices.
     idx_x_sampling = torch.arange(
-        neighbors_partial.shape[0], device=device).repeat_interleave(
-        k - n_found_nn[idx_partial])
+        neighbors_partial.shape[0], device=device
+    ).repeat_interleave(k - n_found_nn[idx_partial])
 
     # Compute the oversampling column indices. The 0.9999 factor is a
     # security to handle the case where torch.rand is to close to 1.0,
     # which would yield incorrect sampling coordinates that would in
     # result in sampling '-1' indices (ie all we try to avoid here)
-    idx_y_sampling = (n_valid * torch.rand(
-        n_valid.shape[0], device=device) * 0.9999).floor().long()
+    idx_y_sampling = (
+        (n_valid * torch.rand(n_valid.shape[0], device=device) * 0.9999).floor().long()
+    )
 
     # Apply the oversampling
     idx_missing = torch.where(neighbors_partial == -1)
-    neighbors_partial[idx_missing] = neighbors_partial[
-        idx_x_sampling, idx_y_sampling]
-    distances_partial[idx_missing] = distances_partial[
-        idx_x_sampling, idx_y_sampling]
+    neighbors_partial[idx_missing] = neighbors_partial[idx_x_sampling, idx_y_sampling]
+    distances_partial[idx_missing] = distances_partial[idx_x_sampling, idx_y_sampling]
 
     # Restore the oversampled neighborhoods with the rest
     neighbors[idx_partial] = neighbors_partial
@@ -272,8 +277,8 @@ def oversample_partial_neighborhoods(neighbors, distances, k):
 
 
 def cluster_radius_nn(
-        x_points, idx, k_max=100, gap=0, trim=True, cycles=3,
-        chunk_size=100000):
+    x_points, idx, k_max=100, gap=0, trim=True, cycles=3, chunk_size=100000
+):
     """Compute the radius neighbors of clusters. Two clusters are
     considered neighbors if 2 of their points are distant of `gap` of
     less.
@@ -306,8 +311,8 @@ def cluster_radius_nn(
     # Roughly estimate the diameter and center of each segment. Note we
     # do not use the centroid (center of mass) but rather the center of
     # the bounding box
-    bbox_low = scatter(x_points, idx, dim=0, reduce='min')
-    bbox_high = scatter(x_points, idx, dim=0, reduce='max')
+    bbox_low = scatter(x_points, idx, dim=0, reduce="min")
+    bbox_high = scatter(x_points, idx, dim=0, reduce="max")
     diam = (bbox_high - bbox_low).max(dim=1).values
     center = (bbox_high + bbox_low) / 2
 
@@ -350,12 +355,13 @@ def cluster_radius_nn(
     # alleviate compute and memory cost
     if trim:
         from src.utils import to_trimmed
+
         edge_index, distances = to_trimmed(
-            edge_index, edge_attr=distances, reduce='min')
+            edge_index, edge_attr=distances, reduce="min"
+        )
     # Coalesce edges to remove duplicates
     else:
-        edge_index, distances = coalesce(
-            edge_index, edge_attr=distances, reduce='min')
+        edge_index, distances = coalesce(edge_index, edge_attr=distances, reduce="min")
 
     # For each cluster pair in edge_index, compute (approximately) the
     # two closest points (coined "anchors" here). The heuristic used
@@ -363,7 +369,8 @@ def cluster_radius_nn(
     # edges, which is O(N) with N the number of points. This is a
     # workaround for the actual anchor points search, which is O(N²)
     anchors = scatter_nearest_neighbor(
-        x_points, idx, edge_index, cycles=cycles, chunk_size=chunk_size)[1]
+        x_points, idx, edge_index, cycles=cycles, chunk_size=chunk_size
+    )[1]
     d_nn = (x_points[anchors[0]] - x_points[anchors[1]]).norm(dim=1)
 
     # Trim edges wrt the anchor points distance

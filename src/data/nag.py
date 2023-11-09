@@ -9,7 +9,7 @@ from torch_geometric.nn.pool.consecutive import consecutive_cluster
 from torch_scatter import scatter_sum
 
 
-__all__ = ['NAG', 'NAGBatch']
+__all__ = ["NAG", "NAGBatch"]
 
 
 class NAG:
@@ -18,9 +18,10 @@ class NAG:
     """
 
     def __init__(self, data_list: List[Data]):
-        assert len(data_list) > 0, \
-            "The NAG must have at least 1 level of hierarchy. Please " \
+        assert len(data_list) > 0, (
+            "The NAG must have at least 1 level of hierarchy. Please "
             "provide a minimum of 1 Data object."
+        )
         self._list = data_list
         if src.is_debug_enabled():
             self.debug()
@@ -62,8 +63,7 @@ class NAG:
 
         low = -1 if low < 0 else low
 
-        super_index = self[0].sub.to_super_index() if low < 0 \
-            else self[low].super_index
+        super_index = self[0].sub.to_super_index() if low < 0 else self[low].super_index
 
         for i in range(low + 1, high):
             super_index = self[i].super_index[super_index]
@@ -100,17 +100,16 @@ class NAG:
 
     def cpu(self, **kwargs):
         """Move the NAG with all Data in it to CPU."""
-        return self.to('cpu', **kwargs)
+        return self.to("cpu", **kwargs)
 
     def cuda(self, **kwargs):
         """Move the NAG with all Data in it to CUDA."""
-        return self.to('cuda', **kwargs)
+        return self.to("cuda", **kwargs)
 
     @property
     def device(self):
         """Return device of first Data in NAG."""
-        return self[0].device if self.num_levels > 0 \
-            else torch.tensor([]).device
+        return self[0].device if self.num_levels > 0 else torch.tensor([]).device
 
     @property
     def is_cuda(self):
@@ -162,9 +161,10 @@ class NAG:
 
         # Make sure idx contains no duplicate entries
         if src.is_debug_enabled():
-            assert not has_duplicates(idx), \
-                "Duplicate indices are not supported. This would cause " \
+            assert not has_duplicates(idx), (
+                "Duplicate indices are not supported. This would cause "
                 "ambiguities in edges and super- and sub- indices."
+            )
 
         # Prepare the output Data list
         data_list = [None] * self.num_levels
@@ -174,7 +174,8 @@ class NAG:
         # 'out_super' will help us update the lower and higher hierarchy
         # levels iteratively
         data_list[i_level], out_sub, out_super = self[i_level].select(
-            idx, update_sub=True, update_super=True)
+            idx, update_sub=True, update_super=True
+        )
 
         # Iteratively update lower hierarchy levels
         for i in range(i_level - 1, -1, -1):
@@ -184,7 +185,8 @@ class NAG:
             # Select points but do not update 'super_index', it will be
             # directly provided by the above-level's 'sub_super'
             data_list[i], out_sub, _ = self[i].select(
-                idx_sub, update_sub=True, update_super=False)
+                idx_sub, update_sub=True, update_super=False
+            )
 
             # Directly update the 'super_index' using 'sub_super' from
             # the above level
@@ -198,7 +200,8 @@ class NAG:
             # Select points but do not update 'sub', it will be directly
             # provided by the above-level's 'super_sub'
             data_list[i], _, out_super = self[i].select(
-                idx_super, update_sub=False, update_super=True)
+                idx_super, update_sub=False, update_super=True
+            )
 
             # Directly update the 'sub' using 'super_sub' from the above
             # level
@@ -209,12 +212,7 @@ class NAG:
 
         return nag
 
-    def save(
-            self,
-            path,
-            y_to_csr=True,
-            pos_dtype=torch.float,
-            fp_dtype=torch.float):
+    def save(self, path, y_to_csr=True, pos_dtype=torch.float, fp_dtype=torch.float):
         """Save NAG to HDF5 file.
 
         :param path:
@@ -230,27 +228,24 @@ class NAG:
             Data type to which floating point tensors should be cast
             before saving
         """
-        with h5py.File(path, 'w') as f:
+        with h5py.File(path, "w") as f:
             for i_level, data in enumerate(self):
-                g = f.create_group(f'partition_{i_level}')
-                data.save(
-                    g,
-                    y_to_csr=y_to_csr,
-                    pos_dtype=pos_dtype,
-                    fp_dtype=fp_dtype)
+                g = f.create_group(f"partition_{i_level}")
+                data.save(g, y_to_csr=y_to_csr, pos_dtype=pos_dtype, fp_dtype=fp_dtype)
 
     @staticmethod
     def load(
-            path,
-            low=0,
-            high=-1,
-            idx=None,
-            keys_idx=None,
-            keys_low=None,
-            keys=None,
-            update_super=True,
-            update_sub=True,
-            verbose=False):
+        path,
+        low=0,
+        high=-1,
+        idx=None,
+        keys_idx=None,
+        keys_low=None,
+        keys=None,
+        update_super=True,
+        update_sub=True,
+        verbose=False,
+    ):
         """Load NAG from an HDF5 file. See `NAG.save` for writing such
         file. Options allow reading only part of the data.
 
@@ -278,7 +273,7 @@ class NAG:
         keys_low = keys if keys_low is None and keys is not None else keys_low
 
         data_list = []
-        with h5py.File(path, 'r') as f:
+        with h5py.File(path, "r") as f:
 
             # Initialize partition levels min and max to read from the
             # file. This functionality is especially intended for
@@ -288,9 +283,7 @@ class NAG:
             high = len(f) - 1 if high < 0 else min(high, len(f) - 1)
 
             # Make sure all required partitions are present in the file
-            assert all([
-                f'partition_{k}' in f.keys()
-                for k in range(low, high + 1)])
+            assert all([f"partition_{k}" in f.keys() for k in range(low, high + 1)])
 
             # Apply index selection on the low only, if required. For
             # all subsequent levels, only keys selection is available
@@ -298,16 +291,23 @@ class NAG:
                 start = time()
                 if i == low:
                     data = Data.load(
-                        f[f'partition_{i}'], idx=idx, keys_idx=keys_idx,
-                        keys=keys_low, update_sub=update_sub,
-                        verbose=verbose)
+                        f[f"partition_{i}"],
+                        idx=idx,
+                        keys_idx=keys_idx,
+                        keys=keys_low,
+                        update_sub=update_sub,
+                        verbose=verbose,
+                    )
                 else:
                     data = Data.load(
-                        f[f'partition_{i}'], keys=keys, update_sub=False,
-                        verbose=verbose)
+                        f[f"partition_{i}"],
+                        keys=keys,
+                        update_sub=False,
+                        verbose=verbose,
+                    )
                 data_list.append(data)
                 if verbose:
-                    print(f'NAG.load lvl-{i:<12} : 'f'{time() - start:0.3f}s\n')
+                    print(f"NAG.load lvl-{i:<12} : " f"{time() - start:0.3f}s\n")
 
         # In the case where update_super is not required but the low
         # level was indexed, we cannot combine the leve-0 and level-1+
@@ -382,13 +382,8 @@ class NAG:
             d.debug()
 
     def get_sampling(
-            self,
-            high=1,
-            low=0,
-            n_max=32,
-            n_min=1,
-            mask=None,
-            return_pointers=False):
+        self, high=1, low=0, n_max=32, n_min=1, mask=None, return_pointers=False
+    ):
         """Compute indices to sample elements at `low`-level, based on
         which segment they belong to at `high`-level.
 
@@ -425,28 +420,33 @@ class NAG:
         """
         super_index = self.get_super_index(high, low=low)
         return sparse_sample(
-            super_index, n_max=n_max, n_min=n_min, mask=mask,
-            return_pointers=return_pointers)
+            super_index,
+            n_max=n_max,
+            n_min=n_min,
+            mask=mask,
+            return_pointers=return_pointers,
+        )
 
     def __repr__(self):
         info = [
             f"{key}={getattr(self, key)}"
-            for key in ['num_levels', 'num_points', 'device']]
+            for key in ["num_levels", "num_points", "device"]
+        ]
         return f"{self.__class__.__name__}({', '.join(info)})"
 
     def __eq__(self, other):
         if not isinstance(other, self.__class__):
             if src.is_debug_enabled():
-                print(f'{self.__class__.__name__}.__eq__: classes differ')
+                print(f"{self.__class__.__name__}.__eq__: classes differ")
             return False
         if self.num_levels != other.num_levels:
             if src.is_debug_enabled():
-                print(f'{self.__class__.__name__}.__eq__: num_levels differ')
+                print(f"{self.__class__.__name__}.__eq__: num_levels differ")
             return False
         for d1, d2 in zip(self, other):
             if d1 != d2:
                 if src.is_debug_enabled():
-                    print(f'{self.__class__.__name__}.__eq__: data differ')
+                    print(f"{self.__class__.__name__}.__eq__: data differ")
                 return False
         return True
 
@@ -459,8 +459,9 @@ class NAGBatch(NAG):
         assert isinstance(nag_list, list)
         assert len(nag_list) > 0
         assert all(isinstance(x, NAG) for x in nag_list)
-        return NAGBatch([
-            Batch.from_data_list(l) for l in zip(*[n._list for n in nag_list])])
+        return NAGBatch(
+            [Batch.from_data_list(l) for l in zip(*[n._list for n in nag_list])]
+        )
 
     def to_nag_list(self):
         return [NAG(l) for l in zip(*[b.to_data_list() for b in self])]

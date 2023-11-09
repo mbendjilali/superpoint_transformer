@@ -33,6 +33,7 @@ class DALESDataModule(BaseDataModule):
     Read the docs:
         https://pytorch-lightning.readthedocs.io/en/latest/data/datamodule.html
     """
+
     _DATASET_CLASS = DALES
     _MINIDATASET_CLASS = MiniDALES
 

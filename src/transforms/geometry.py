@@ -5,14 +5,18 @@ from src.utils.geometry import rodrigues_rotation_matrix
 
 
 __all__ = [
-    'CenterPosition', 'RandomTiltAndRotate', 'RandomAnisotropicScale',
-    'RandomAxisFlip']
+    "CenterPosition",
+    "RandomTiltAndRotate",
+    "RandomAnisotropicScale",
+    "RandomAxisFlip",
+]
 
 
 class CenterPosition(Transform):
     """Center the position of all nodes of all levels of a NAG around
     their level-0 centroid.
     """
+
     _IN_TYPE = NAG
     _OUT_TYPE = NAG
 
@@ -59,7 +63,7 @@ class RandomTiltAndRotate(Transform):
         device = nag.device
 
         # Generate the random rotation axis
-        sigma = self.phi / 180. * torch.pi / 3
+        sigma = self.phi / 180.0 * torch.pi / 3
         if sigma > 0:
             means = torch.zeros(2, device=device)
             stds = torch.eye(2, device=device) * sigma
@@ -87,17 +91,20 @@ class RandomTiltAndRotate(Transform):
 
             # If the nodes have a `normal` or 'mean_normal' attribute,
             # we also adapt their orientations accordingly
-            for k in ['normal', 'mean_normal']:
+            for k in ["normal", "mean_normal"]:
                 if getattr(nag[i_level], k, None) is not None:
                     nag[i_level][k] = self._rotate_normal(nag[i_level][k], R)
 
             if nag[i_level].edge_attr is not None:
                 edge_attr = nag[i_level].edge_attr
-                assert edge_attr.shape[1] == 7, \
-                    "Expected exactly 7 features in `edge_attr`, generated " \
+                assert edge_attr.shape[1] == 7, (
+                    "Expected exactly 7 features in `edge_attr`, generated "
                     "with `_minimalistic_horizontal_edge_features`"
+                )
                 dtype = edge_attr.dtype
-                edge_attr[:, :3] = (edge_attr[:, :3].float() @ R.T).to(dtype)  # `mean_off`, float16 mm not supported on CPU
+                edge_attr[:, :3] = (edge_attr[:, :3].float() @ R.T).to(
+                    dtype
+                )  # `mean_off`, float16 mm not supported on CPU
                 nag[i_level].edge_attr = edge_attr
 
         return nag
@@ -158,17 +165,22 @@ class RandomAnisotropicScale(Transform):
 
             # If the nodes have a `normal` or 'mean_normal' attribute,
             # we also adapt their orientations accordingly
-            for k in ['normal', 'mean_normal']:
+            for k in ["normal", "mean_normal"]:
                 if getattr(nag[i_level], k, None) is not None:
                     nag[i_level][k] = self._scale_normal(nag[i_level][k], scale)
 
-            if getattr(nag[i_level], 'edge_attr', None) is not None:
+            if getattr(nag[i_level], "edge_attr", None) is not None:
                 edge_attr = nag[i_level].edge_attr
-                assert edge_attr.shape[1] == 7, \
-                    "Expected exactly 7 features in `edge_attr`, generated " \
+                assert edge_attr.shape[1] == 7, (
+                    "Expected exactly 7 features in `edge_attr`, generated "
                     "with `_minimalistic_horizontal_edge_features`"
+                )
                 edge_attr[:, :3] *= scale
-                edge_attr[:, 3:] *= scale.norm()  # std_off and mean_dist are scaled by the scaling norm, slightly incorrect for std_off...
+                edge_attr[
+                    :, 3:
+                ] *= (
+                    scale.norm()
+                )  # std_off and mean_dist are scaled by the scaling norm, slightly incorrect for std_off...
                 nag[i_level].edge_attr = edge_attr
 
         return nag
@@ -213,15 +225,16 @@ class RandomAxisFlip(Transform):
 
             # If the nodes have a `normal` or 'mean_normal' attribute,
             # we also adapt their orientations accordingly
-            for k in ['normal', 'mean_normal']:
+            for k in ["normal", "mean_normal"]:
                 if getattr(nag[i_level], k, None) is not None:
                     nag[i_level][k] = self._flip_normal(nag[i_level][k], axis)
 
             if nag[i_level].edge_attr is not None:
                 edge_attr = nag[i_level].edge_attr
-                assert edge_attr.shape[1] == 7, \
-                    "Expected exactly 7 features in `edge_attr`, generated " \
+                assert edge_attr.shape[1] == 7, (
+                    "Expected exactly 7 features in `edge_attr`, generated "
                     "with `_minimalistic_horizontal_edge_features`"
+                )
                 edge_attr[:, :3][:, axis] *= -1  # mean_off
                 nag[i_level].edge_attr = edge_attr
 

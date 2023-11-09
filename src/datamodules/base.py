@@ -28,7 +28,8 @@ _SUBMISSION_CONFLICTS = [
     SampleSegments,
     SampleKHopSubgraphs,
     SampleRadiusSubgraphs,
-    SampleSubNodes]
+    SampleSubNodes,
+]
 
 
 class BaseDataModule(LightningDataModule):
@@ -67,16 +68,29 @@ class BaseDataModule(LightningDataModule):
     Read the docs:
         https://pytorch-lightning.readthedocs.io/en/latest/data/datamodule.html
     """
+
     _DATASET_CLASS = None
     _MINIDATASET_CLASS = None
 
     def __init__(
-            self, data_dir='', pre_transform=None, train_transform=None,
-            val_transform=None, test_transform=None,
-            on_device_train_transform=None, on_device_val_transform=None,
-            on_device_test_transform=None, dataloader=None, mini=False,
-            trainval=False, val_on_test=False, tta_runs=None, tta_val=False,
-            submit=False, **kwargs):
+        self,
+        data_dir="",
+        pre_transform=None,
+        train_transform=None,
+        val_transform=None,
+        test_transform=None,
+        on_device_train_transform=None,
+        on_device_val_transform=None,
+        on_device_test_transform=None,
+        dataloader=None,
+        mini=False,
+        trainval=False,
+        val_on_test=False,
+        tta_runs=None,
+        tta_val=False,
+        submit=False,
+        **kwargs,
+    ):
         super().__init__()
 
         # This line allows to access init params with 'self.hparams'
@@ -118,8 +132,7 @@ class BaseDataModule(LightningDataModule):
 
     @property
     def dataset_class(self):
-        """Return the LightningDataModule's Dataset class.
-        """
+        """Return the LightningDataModule's Dataset class."""
         if self.hparams.mini:
             return self._MINIDATASET_CLASS
         return self._DATASET_CLASS
@@ -129,14 +142,14 @@ class BaseDataModule(LightningDataModule):
         """Return either 'train' or 'trainval' depending on how
         `self.hparams.trainval` is configured.
         """
-        return 'trainval' if self.hparams.trainval else 'train'
+        return "trainval" if self.hparams.trainval else "train"
 
     @property
     def val_stage(self):
         """Return either 'val' or 'test' depending on how
         `self.hparams.val_on_test` is configured.
         """
-        return 'test' if self.hparams.val_on_test else 'val'
+        return "test" if self.hparams.val_on_test else "val"
 
     def prepare_data(self):
         """Download and heavy preprocessing of data should be triggered
@@ -146,23 +159,39 @@ class BaseDataModule(LightningDataModule):
         it will not be preserved outside this scope.
         """
         self.dataset_class(
-            self.hparams.data_dir, stage=self.train_stage,
-            transform=self.train_transform, pre_transform=self.pre_transform,
-            on_device_transform=self.on_device_train_transform, **self.kwargs)
+            self.hparams.data_dir,
+            stage=self.train_stage,
+            transform=self.train_transform,
+            pre_transform=self.pre_transform,
+            on_device_transform=self.on_device_train_transform,
+            **self.kwargs,
+        )
 
         self.dataset_class(
-            self.hparams.data_dir, stage=self.val_stage,
-            transform=self.val_transform, pre_transform=self.pre_transform,
-            on_device_transform=self.on_device_val_transform, **self.kwargs)
+            self.hparams.data_dir,
+            stage=self.val_stage,
+            transform=self.val_transform,
+            pre_transform=self.pre_transform,
+            on_device_transform=self.on_device_val_transform,
+            **self.kwargs,
+        )
 
         self.dataset_class(
-            self.hparams.data_dir, stage='test',
-            transform=self.test_transform, pre_transform=self.pre_transform,
-            on_device_transform=self.on_device_test_transform, **self.kwargs)
+            self.hparams.data_dir,
+            stage="test",
+            transform=self.test_transform,
+            pre_transform=self.pre_transform,
+            on_device_transform=self.on_device_test_transform,
+            **self.kwargs,
+        )
         self.dataset_class(
-            self.hparams.data_dir, stage='predict',
-            transform=self.predict_transform, pre_transform=self.pre_transform,
-            on_device_transform=self.on_device_predict_transform, **self.kwargs)
+            self.hparams.data_dir,
+            stage="predict",
+            transform=self.predict_transform,
+            pre_transform=self.pre_transform,
+            on_device_transform=self.on_device_predict_transform,
+            **self.kwargs,
+        )
 
     def setup(self, stage=None):
         """Load data. Set variables: `self.train_dataset`,
@@ -173,25 +202,40 @@ class BaseDataModule(LightningDataModule):
         random split twice!
         """
         self.train_dataset = self.dataset_class(
-            self.hparams.data_dir, stage=self.train_stage,
-            transform=self.train_transform, pre_transform=self.pre_transform,
-            on_device_transform=self.on_device_train_transform, **self.kwargs)
+            self.hparams.data_dir,
+            stage=self.train_stage,
+            transform=self.train_transform,
+            pre_transform=self.pre_transform,
+            on_device_transform=self.on_device_train_transform,
+            **self.kwargs,
+        )
 
         self.val_dataset = self.dataset_class(
-            self.hparams.data_dir, stage=self.val_stage,
-            transform=self.val_transform, pre_transform=self.pre_transform,
-            on_device_transform=self.on_device_val_transform, **self.kwargs)
+            self.hparams.data_dir,
+            stage=self.val_stage,
+            transform=self.val_transform,
+            pre_transform=self.pre_transform,
+            on_device_transform=self.on_device_val_transform,
+            **self.kwargs,
+        )
 
         self.test_dataset = self.dataset_class(
-            self.hparams.data_dir, stage='test',
-            transform=self.test_transform, pre_transform=self.pre_transform,
-            on_device_transform=self.on_device_test_transform, **self.kwargs)
+            self.hparams.data_dir,
+            stage="test",
+            transform=self.test_transform,
+            pre_transform=self.pre_transform,
+            on_device_transform=self.on_device_test_transform,
+            **self.kwargs,
+        )
 
         self.predict_dataset = self.dataset_class(
-            self.hparams.data_dir, stage='predict',
-            transform=self.predict_transform, pre_transform=self.pre_transform,
-            on_device_transform=self.on_device_predict_transform, **self.kwargs)
-
+            self.hparams.data_dir,
+            stage="predict",
+            transform=self.predict_transform,
+            pre_transform=self.pre_transform,
+            on_device_transform=self.on_device_predict_transform,
+            **self.kwargs,
+        )
 
     def set_transforms(self):
         """Parse in self.hparams in search for '*transform*' keys and
@@ -213,23 +257,23 @@ class BaseDataModule(LightningDataModule):
                 setattr(self, name, transform)
 
     def check_tta_conflicts(self):
-        """Make sure the transforms are Test-Time Augmentation-friendly
-        """
+        """Make sure the transforms are Test-Time Augmentation-friendly"""
         # Skip if not TTA
         if self.hparams.tta_runs is None or self.hparams.tta_runs == 1:
             return
 
         # Make sure all transforms are test-time augmentation friendly
-        transforms = getattr(self.test_transform, 'transforms', [])
-        transforms += getattr(self.on_device_test_transform, 'transforms', [])
+        transforms = getattr(self.test_transform, "transforms", [])
+        transforms += getattr(self.on_device_test_transform, "transforms", [])
         if self.hparams.tta_val:
-            transforms += getattr(self.val_transform, 'transforms', [])
-            transforms += getattr(self.on_device_val_transform, 'transforms', [])
+            transforms += getattr(self.val_transform, "transforms", [])
+            transforms += getattr(self.on_device_val_transform, "transforms", [])
         for t in transforms:
             if t in _TTA_CONFLICTS:
                 raise NotImplementedError(
                     f"Cannot use {t} with test-time augmentation. The "
-                    f"following transforms are not supported: {_TTA_CONFLICTS}")
+                    f"following transforms are not supported: {_TTA_CONFLICTS}"
+                )
 
     def check_submission_conflicts(self):
         """Make sure the transforms and other parameters do not prevent
@@ -244,27 +288,31 @@ class BaseDataModule(LightningDataModule):
         if self.hparams.dataloader.batch_size > 1:
             raise NotImplementedError(
                 f"Cannot run test prediction submission for dataloaders "
-                f"with batch size > 1")
+                f"with batch size > 1"
+            )
 
         # Make sure all transforms are test submission friendly
-        transforms = getattr(self.test_transform, 'transforms', [])
-        transforms += getattr(self.on_device_test_transform, 'transforms', [])
+        transforms = getattr(self.test_transform, "transforms", [])
+        transforms += getattr(self.on_device_test_transform, "transforms", [])
         for t in transforms:
             if t in _SUBMISSION_CONFLICTS:
                 raise NotImplementedError(
                     f"Cannot use {t} with test prediction submission. The "
                     f"following transforms are not supported: "
-                    f"{_SUBMISSION_CONFLICTS}")
+                    f"{_SUBMISSION_CONFLICTS}"
+                )
 
     def train_dataloader(self):
         from torch.utils.data import RandomSampler
+
         return DataLoader(
             dataset=self.train_dataset,
             batch_size=self.hparams.dataloader.batch_size,
             num_workers=self.hparams.dataloader.num_workers,
             pin_memory=self.hparams.dataloader.pin_memory,
             persistent_workers=self.hparams.dataloader.persistent_workers,
-            shuffle=True)
+            shuffle=True,
+        )
 
     def val_dataloader(self):
         return DataLoader(
@@ -273,7 +321,8 @@ class BaseDataModule(LightningDataModule):
             num_workers=self.hparams.dataloader.num_workers,
             pin_memory=self.hparams.dataloader.pin_memory,
             persistent_workers=self.hparams.dataloader.persistent_workers,
-            shuffle=False)
+            shuffle=False,
+        )
 
     def test_dataloader(self):
         return DataLoader(
@@ -282,7 +331,8 @@ class BaseDataModule(LightningDataModule):
             num_workers=self.hparams.dataloader.num_workers,
             pin_memory=self.hparams.dataloader.pin_memory,
             persistent_workers=self.hparams.dataloader.persistent_workers,
-            shuffle=False)
+            shuffle=False,
+        )
 
     def predict_dataloader(self):
         return DataLoader(
@@ -291,7 +341,8 @@ class BaseDataModule(LightningDataModule):
             num_workers=self.hparams.dataloader.num_workers,
             pin_memory=self.hparams.dataloader.pin_memory,
             persistent_workers=self.hparams.dataloader.persistent_workers,
-            shuffle=False)
+            shuffle=False,
+        )
 
     def teardown(self, stage=None):
         """Clean up after fit or test."""
@@ -337,8 +388,9 @@ class BaseDataModule(LightningDataModule):
             on_device_transform = self.on_device_train_transform
         else:
             log.warning(
-                'Unsure which stage we are in, defaulting to '
-                'self.on_device_train_transform')
+                "Unsure which stage we are in, defaulting to "
+                "self.on_device_train_transform"
+            )
             on_device_transform = self.on_device_train_transform
 
         # Skip on_device_transform if None
@@ -347,10 +399,12 @@ class BaseDataModule(LightningDataModule):
 
         # Apply on_device_transform only once when in training mode and
         # if no test-time augmentation is required
-        if self.trainer.training \
-                or self.hparams.tta_runs is None \
-                or self.hparams.tta_runs == 1 or \
-                (self.trainer.validating and not self.hparams.tta_val):
+        if (
+            self.trainer.training
+            or self.hparams.tta_runs is None
+            or self.hparams.tta_runs == 1
+            or (self.trainer.validating and not self.hparams.tta_val)
+        ):
             return on_device_transform(nag)
 
         # We return the input NAG as well as the augmentation transform
@@ -359,4 +413,4 @@ class BaseDataModule(LightningDataModule):
         return nag, on_device_transform, self.hparams.tta_runs
 
     def __repr__(self):
-        return f'{self.__class__.__name__}'
+        return f"{self.__class__.__name__}"

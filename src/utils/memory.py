@@ -2,26 +2,30 @@ import gc
 import torch
 
 
-__all__ = ['print_memory_size', 'garbage_collection_cuda']
+__all__ = ["print_memory_size", "garbage_collection_cuda"]
 
 
 def print_memory_size(a):
     assert isinstance(a, torch.Tensor)
     memory = a.element_size() * a.nelement()
     if memory > 1024 * 1024 * 1024:
-        print(f'Memory: {memory / (1024 * 1024 * 1024):0.3f} Gb')
+        print(f"Memory: {memory / (1024 * 1024 * 1024):0.3f} Gb")
         return
     if memory > 1024 * 1024:
-        print(f'Memory: {memory / (1024 * 1024):0.3f} Mb')
+        print(f"Memory: {memory / (1024 * 1024):0.3f} Mb")
         return
     if memory > 1024:
-        print(f'Memory: {memory / 1024:0.3f} Kb')
+        print(f"Memory: {memory / 1024:0.3f} Kb")
         return
-    print(f'Memory: {memory:0.3f} bytes')
+    print(f"Memory: {memory:0.3f} bytes")
 
 
 def is_oom_error(exception: BaseException) -> bool:
-    return is_cuda_out_of_memory(exception) or is_cudnn_snafu(exception) or is_out_of_cpu_memory(exception)
+    return (
+        is_cuda_out_of_memory(exception)
+        or is_cudnn_snafu(exception)
+        or is_out_of_cpu_memory(exception)
+    )
 
 
 # based on https://github.com/BlackHC/toma/blob/master/toma/torch_cuda_memory.py

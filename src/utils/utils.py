@@ -14,8 +14,15 @@ from src.utils import pylogger, rich_utils
 
 
 __all__ = [
-    'close_loggers', 'extras', 'get_metric_value', 'instantiate_callbacks',
-    'instantiate_loggers', 'log_hyperparameters', 'save_file', 'task_wrapper']
+    "close_loggers",
+    "extras",
+    "get_metric_value",
+    "instantiate_callbacks",
+    "instantiate_loggers",
+    "log_hyperparameters",
+    "save_file",
+    "task_wrapper",
+]
 
 
 log = pylogger.get_pylogger(__name__)
@@ -48,8 +55,12 @@ def task_wrapper(task_func: Callable) -> Callable:
             raise ex
         finally:
             path = Path(cfg.paths.output_dir, "exec_time.log")
-            content = f"'{cfg.task_name}' execution time: {time.time() - start_time} (s)"
-            save_file(path, content)  # save task execution time (even if exception occurs)
+            content = (
+                f"'{cfg.task_name}' execution time: {time.time() - start_time} (s)"
+            )
+            save_file(
+                path, content
+            )  # save task execution time (even if exception occurs)
             close_loggers()  # close loggers (even if exception occurs so multirun won't fail)
 
         log.info(f"Output dir: {cfg.paths.output_dir}")

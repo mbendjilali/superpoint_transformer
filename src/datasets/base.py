@@ -14,19 +14,24 @@ from torch_geometric.data.dataset import files_exist
 from torch_geometric.data.makedirs import makedirs
 from torch_geometric.data.dataset import _repr
 from src.data import NAG
-from src.transforms import NAGSelectByKey, NAGRemoveKeys, SampleXYTiling, \
-    SampleRecursiveMainXYAxisTiling
+from src.transforms import (
+    NAGSelectByKey,
+    NAGRemoveKeys,
+    SampleXYTiling,
+    SampleRecursiveMainXYAxisTiling,
+)
 
 DIR = os.path.dirname(os.path.realpath(__file__))
 log = logging.getLogger(__name__)
 
 
-__all__ = ['BaseDataset']
+__all__ = ["BaseDataset"]
 
 
 ########################################################################
 #                             BaseDataset                              #
 ########################################################################
+
 
 class BaseDataset(InMemoryDataset):
     """Base class for datasets.
@@ -116,31 +121,32 @@ class BaseDataset(InMemoryDataset):
     """
 
     def __init__(
-            self,
-            root,
-            stage='train',
-            transform=None,
-            pre_transform=None,
-            pre_filter=None,
-            on_device_transform=None,
-            save_y_to_csr=True,
-            save_pos_dtype=torch.float,
-            save_fp_dtype=torch.half,
-            xy_tiling=None,
-            pc_tiling=None,
-            val_mixed_in_train=False,
-            test_mixed_in_val=False,
-            custom_hash=None,
-            in_memory=False,
-            point_save_keys=None,
-            point_no_save_keys=None,
-            point_load_keys=None,
-            segment_save_keys=None,
-            segment_no_save_keys=None,
-            segment_load_keys=None,
-            **kwargs):
+        self,
+        root,
+        stage="train",
+        transform=None,
+        pre_transform=None,
+        pre_filter=None,
+        on_device_transform=None,
+        save_y_to_csr=True,
+        save_pos_dtype=torch.float,
+        save_fp_dtype=torch.half,
+        xy_tiling=None,
+        pc_tiling=None,
+        val_mixed_in_train=False,
+        test_mixed_in_val=False,
+        custom_hash=None,
+        in_memory=False,
+        point_save_keys=None,
+        point_no_save_keys=None,
+        point_load_keys=None,
+        segment_save_keys=None,
+        segment_no_save_keys=None,
+        segment_load_keys=None,
+        **kwargs,
+    ):
 
-        assert stage in ['train', 'val', 'trainval', 'test', 'predict']
+        assert stage in ["train", "val", "trainval", "test", "predict"]
 
         # Set these attributes before calling parent `__init__` because
         # some attributes will be needed in parent `download` and
@@ -171,8 +177,9 @@ class BaseDataset(InMemoryDataset):
         # the XY plane. Each step splits the data in 2, wrt to its
         # geometry. The value of pc_tiling indicates the number of split
         # steps used. Hence, 2**pc_tiling tiles will be created.
-        assert xy_tiling is None or pc_tiling is None, \
-            "Cannot apply both XY and PC tiling, please choose only one."
+        assert (
+            xy_tiling is None or pc_tiling is None
+        ), "Cannot apply both XY and PC tiling, please choose only one."
         if xy_tiling is None:
             self.xy_tiling = None
         elif isinstance(xy_tiling, int):
@@ -205,22 +212,24 @@ class BaseDataset(InMemoryDataset):
         # `on_device_transform`. Otherwise, if we have no mixed-stages,
         # we simply remove all `is_val` attributes in the
         # `on_device_transform`
-        if self.stage == 'train' and self.val_mixed_in_train:
-            t = NAGSelectByKey(key='is_val', negation=True)
-        elif self.stage == 'val' and self.val_mixed_in_train or self.test_mixed_in_val:
-            t = NAGSelectByKey(key='is_val', negation=False)
-        elif self.stage == 'test' and self.test_mixed_in_val:
-            t = NAGSelectByKey(key='is_val', negation=True)
+        if self.stage == "train" and self.val_mixed_in_train:
+            t = NAGSelectByKey(key="is_val", negation=True)
+        elif self.stage == "val" and self.val_mixed_in_train or self.test_mixed_in_val:
+            t = NAGSelectByKey(key="is_val", negation=False)
+        elif self.stage == "test" and self.test_mixed_in_val:
+            t = NAGSelectByKey(key="is_val", negation=True)
         else:
-            t = NAGRemoveKeys(level='all', keys=['is_val'], strict=False)
+            t = NAGRemoveKeys(level="all", keys=["is_val"], strict=False)
 
         # Make sure a NAGRemoveKeys for `is_val` does not already exist
         # in the `on_device_transform` before prepending the transform
         if not any(
-                isinstance(odt, NAGSelectByKey) and odt.key == 'is_val'
-                for odt in self.on_device_transform.transforms):
-            self.on_device_transform.transforms = \
-                [t] + self.on_device_transform.transforms
+            isinstance(odt, NAGSelectByKey) and odt.key == "is_val"
+            for odt in self.on_device_transform.transforms
+        ):
+            self.on_device_transform.transforms = [
+                t
+            ] + self.on_device_transform.transforms
 
         # Load the processed data, if the dataset must be in memory
         if self.in_memory:
@@ -228,8 +237,10 @@ class BaseDataset(InMemoryDataset):
                 NAG.load(
                     self.processed_paths[i],
                     keys_low=self.point_load_keys,
-                    keys=self.segment_load_keys)
-                for i in range(len(self))]
+                    keys=self.segment_load_keys,
+                )
+                for i in range(len(self))
+            ]
             if self.transform is not None:
                 in_memory_data = [self.transform(x) for x in in_memory_data]
             self._in_memory_data = in_memory_data
@@ -287,35 +298,37 @@ class BaseDataset(InMemoryDataset):
             tx, ty = self.xy_tiling
             return {
                 stage: [
-                    f'{ci}__TILE_{x + 1}-{y + 1}_OF_{tx}-{ty}'
+                    f"{ci}__TILE_{x + 1}-{y + 1}_OF_{tx}-{ty}"
                     for ci in ids
-                    for x, y in product(range(tx), range(ty))]
-                for stage, ids in self.all_base_cloud_ids.items()}
+                    for x, y in product(range(tx), range(ty))
+                ]
+                for stage, ids in self.all_base_cloud_ids.items()
+            }
 
         if self.pc_tiling is not None:
             return {
                 stage: [
-                    f'{ci}__TILE_{x + 1}_OF_{2**self.pc_tiling}'
+                    f"{ci}__TILE_{x + 1}_OF_{2**self.pc_tiling}"
                     for ci in ids
-                    for x in range(2**self.pc_tiling)]
-                for stage, ids in self.all_base_cloud_ids.items()}
+                    for x in range(2**self.pc_tiling)
+                ]
+                for stage, ids in self.all_base_cloud_ids.items()
+            }
 
         # If no tiling needed, return the all_base_cloud_ids
         return self.all_base_cloud_ids
 
     def id_to_base_id(self, id):
-        """Given an ID, remove the tiling indications, if any.
-        """
+        """Given an ID, remove the tiling indications, if any."""
         if self.xy_tiling is None and self.pc_tiling is None:
             return id
         return self.get_tile_from_path(id)[1]
 
     @property
     def cloud_ids(self):
-        """IDs of the dataset clouds, based on its `stage`.
-        """
-        if self.stage == 'trainval':
-           ids = self.all_cloud_ids['train'] + self.all_cloud_ids['val']
+        """IDs of the dataset clouds, based on its `stage`."""
+        if self.stage == "trainval":
+            ids = self.all_cloud_ids["train"] + self.all_cloud_ids["val"]
         else:
             ids = self.all_cloud_ids[self.stage]
         return sorted(list(set(ids)))
@@ -326,16 +339,18 @@ class BaseDataset(InMemoryDataset):
         `val_mixed_in_train=True` or `test_mixed_in_val=True`, in
         which case some clouds may appear in several stages
         """
-        train = set(self.all_cloud_ids['train'])
-        val = set(self.all_cloud_ids['val'])
-        test = set(self.all_cloud_ids['test'])
+        train = set(self.all_cloud_ids["train"])
+        val = set(self.all_cloud_ids["val"])
+        test = set(self.all_cloud_ids["test"])
 
-        assert len(train.intersection(val)) == 0 or self.val_mixed_in_train, \
-            "Cloud ids must be unique across all the 'train' and 'val' " \
+        assert len(train.intersection(val)) == 0 or self.val_mixed_in_train, (
+            "Cloud ids must be unique across all the 'train' and 'val' "
             "stages, unless `val_mixed_in_train=True`"
-        assert len(val.intersection(test)) == 0 or self.test_mixed_in_val, \
-            "Cloud ids must be unique across all the 'val' and 'test' " \
+        )
+        assert len(val.intersection(test)) == 0 or self.test_mixed_in_val, (
+            "Cloud ids must be unique across all the 'val' and 'test' "
             "stages, unless `test_mixed_in_val=True`"
+        )
 
     @property
     def raw_file_structure(self):
@@ -363,7 +378,7 @@ class BaseDataset(InMemoryDataset):
         path (relative to `self.raw_dir`) of the corresponding raw
         cloud.
         """
-        return osp.join(self.id_to_base_id(id) + '.ply')
+        return osp.join(self.id_to_base_id(id) + ".ply")
 
     @property
     def pre_transform_hash(self):
@@ -373,7 +388,7 @@ class BaseDataset(InMemoryDataset):
         if self.custom_hash is not None:
             return self.custom_hash
         if self.pre_transform is None:
-            return 'no_pre_transform'
+            return "no_pre_transform"
         return hashlib.md5(_repr(self.pre_transform).encode()).hexdigest()
 
     @property
@@ -383,19 +398,22 @@ class BaseDataset(InMemoryDataset):
         """
         # For 'trainval', we use files from 'train' and 'val' to save
         # memory
-        if self.stage == 'trainval' and self.val_mixed_in_train:
+        if self.stage == "trainval" and self.val_mixed_in_train:
             return [
-                osp.join('train', self.pre_transform_hash, f'{w}.h5')
-                for s in ('train', 'val')
-                for w in self.all_cloud_ids[s]]
-        if self.stage == 'trainval':
+                osp.join("train", self.pre_transform_hash, f"{w}.h5")
+                for s in ("train", "val")
+                for w in self.all_cloud_ids[s]
+            ]
+        if self.stage == "trainval":
             return [
-                osp.join(s, self.pre_transform_hash, f'{w}.h5')
-                for s in ('train', 'val')
-                for w in self.all_cloud_ids[s]]
+                osp.join(s, self.pre_transform_hash, f"{w}.h5")
+                for s in ("train", "val")
+                for w in self.all_cloud_ids[s]
+            ]
         return [
-            osp.join(self.stage, self.pre_transform_hash, f'{w}.h5')
-            for w in self.cloud_ids]
+            osp.join(self.stage, self.pre_transform_hash, f"{w}.h5")
+            for w in self.cloud_ids
+        ]
 
     def processed_to_raw_path(self, processed_path):
         """Given a processed cloud path from `self.processed_paths`,
@@ -405,8 +423,7 @@ class BaseDataset(InMemoryDataset):
         default structure.
         """
         # Extract useful information from <path>
-        stage, hash_dir, cloud_id = \
-            osp.splitext(processed_path)[0].split('/')[-3:]
+        stage, hash_dir, cloud_id = osp.splitext(processed_path)[0].split("/")[-3:]
 
         # Remove the tiling in the cloud_id, if any
         base_cloud_id = self.id_to_base_id(cloud_id)
@@ -432,13 +449,13 @@ class BaseDataset(InMemoryDataset):
         date and time of creation.
         """
         submissions_dir = osp.join(self.root, "submissions")
-        date = '-'.join([
-            f'{getattr(datetime.now(), x)}'
-            for x in ['year', 'month', 'day']])
-        time = '-'.join([
-            f'{getattr(datetime.now(), x)}'
-            for x in ['hour', 'minute', 'second']])
-        submission_name = f'{date}_{time}'
+        date = "-".join(
+            [f"{getattr(datetime.now(), x)}" for x in ["year", "month", "day"]]
+        )
+        time = "-".join(
+            [f"{getattr(datetime.now(), x)}" for x in ["hour", "minute", "second"]]
+        )
+        submission_name = f"{date}_{time}"
         path = osp.join(submissions_dir, submission_name)
         return path
 
@@ -455,8 +472,8 @@ class BaseDataset(InMemoryDataset):
     def download_warning(self, interactive=False):
         # Warning message for the user about to download
         log.info(
-            f"WARNING: You are about to download {self.__class__.__name__} "
-            f"data.")
+            f"WARNING: You are about to download {self.__class__.__name__} " f"data."
+        )
         if self.raw_file_structure is not None:
             log.info("Files will be organized in the following structure:")
             log.info(self.raw_file_structure)
@@ -475,28 +492,29 @@ class BaseDataset(InMemoryDataset):
         the pre-transforms have changed. This is possible thanks to our
         `pre_transform_hash` mechanism.
         """
-        f = osp.join(self.processed_dir, 'pre_filter.pt')
+        f = osp.join(self.processed_dir, "pre_filter.pt")
         if osp.exists(f) and torch.load(f) != _repr(self.pre_filter):
             warnings.warn(
                 "The `pre_filter` argument differs from the one used in "
                 "the pre-processed version of this dataset. If you want to "
                 "make use of another pre-fitering technique, make sure to "
-                "delete '{self.processed_dir}' first")
+                "delete '{self.processed_dir}' first"
+            )
 
         if files_exist(self.processed_paths):  # pragma: no cover
             return
 
-        if self.log and 'pytest' not in sys.modules:
-            print('Processing...', file=sys.stderr)
+        if self.log and "pytest" not in sys.modules:
+            print("Processing...", file=sys.stderr)
 
         makedirs(self.processed_dir)
         self.process()
 
-        path = osp.join(self.processed_dir, 'pre_filter.pt')
+        path = osp.join(self.processed_dir, "pre_filter.pt")
         torch.save(_repr(self.pre_filter), path)
 
-        if self.log and 'pytest' not in sys.modules:
-            print('Done!', file=sys.stderr)
+        if self.log and "pytest" not in sys.modules:
+            print("Done!", file=sys.stderr)
 
     def process(self):
         # If some stages have mixed clouds (they rely on the same cloud
@@ -505,10 +523,10 @@ class BaseDataset(InMemoryDataset):
         # necessary folders, to avoid duplicate preprocessing
         # computation
         hash_dir = self.pre_transform_hash
-        train_dir = osp.join(self.processed_dir, 'train', hash_dir)
-        val_dir = osp.join(self.processed_dir, 'val', hash_dir)
-        test_dir = osp.join(self.processed_dir, 'test', hash_dir)
-        predict_dir = osp.join(self.processed_dir, 'predict', hash_dir)
+        train_dir = osp.join(self.processed_dir, "train", hash_dir)
+        val_dir = osp.join(self.processed_dir, "val", hash_dir)
+        test_dir = osp.join(self.processed_dir, "test", hash_dir)
+        predict_dir = osp.join(self.processed_dir, "predict", hash_dir)
         if not osp.exists(train_dir):
             os.makedirs(train_dir, exist_ok=True)
         if not osp.exists(val_dir):
@@ -546,7 +564,7 @@ class BaseDataset(InMemoryDataset):
         raw_path = self.processed_to_raw_path(cloud_path)
         data = self.read_single_raw_cloud(raw_path)
 
-        if getattr(data, 'y', None) is not None:
+        if getattr(data, "y", None) is not None:
             data.y[data.y == -1] = self.num_classes
 
         # If the cloud path indicates a tiling is needed, apply it here
@@ -571,7 +589,7 @@ class BaseDataset(InMemoryDataset):
             nag = NAGRemoveKeys(level=0, keys=self.point_no_save_keys)(nag)
         if self.segment_save_keys is not None:
             keys = set(nag[1].keys) - set(self.segment_save_keys)
-            nag = NAGRemoveKeys(level='1+', keys=keys)(nag)
+            nag = NAGRemoveKeys(level="1+", keys=keys)(nag)
         elif self.segment_no_save_keys is not None:
             nag = NAGRemoveKeys(level=0, keys=self.segment_no_save_keys)(nag)
 
@@ -580,25 +598,26 @@ class BaseDataset(InMemoryDataset):
             cloud_path,
             y_to_csr=self.save_y_to_csr,
             pos_dtype=self.save_pos_dtype,
-            fp_dtype=self.save_fp_dtype)
+            fp_dtype=self.save_fp_dtype,
+        )
         del nag
 
     @staticmethod
     def get_tile_from_path(path):
         # Search the XY tiling suffix pattern
-        out_reg = re.search('__TILE_(\d+)-(\d+)_OF_(\d+)-(\d+)', path)
+        out_reg = re.search("__TILE_(\d+)-(\d+)_OF_(\d+)-(\d+)", path)
         if out_reg is not None:
             x, y, x_tiling, y_tiling = [int(g) for g in out_reg.groups()]
-            suffix = f'__TILE_{x}-{y}_OF_{x_tiling}-{y_tiling}'
-            prefix = path.replace(suffix, '')
+            suffix = f"__TILE_{x}-{y}_OF_{x_tiling}-{y_tiling}"
+            prefix = path.replace(suffix, "")
             return (x - 1, y - 1, (x_tiling, y_tiling)), prefix, suffix
 
         # Search the PC tiling suffix pattern
-        out_reg = re.search('__TILE_(\d+)_OF_(\d+)', path)
+        out_reg = re.search("__TILE_(\d+)_OF_(\d+)", path)
         if out_reg is not None:
             x, num = [int(g) for g in out_reg.groups()]
-            suffix = f'__TILE_{x}_OF_{num}'
-            prefix = path.replace(suffix, '')
+            suffix = f"__TILE_{x}_OF_{num}"
+            prefix = path.replace(suffix, "")
             steps = torch.log2(torch.tensor(num)).int().item()
             return (x - 1, steps), prefix, suffix
 
@@ -610,12 +629,12 @@ class BaseDataset(InMemoryDataset):
         """
         raise NotImplementedError
 
-    def get_class_weight(self, smooth='sqrt'):
+    def get_class_weight(self, smooth="sqrt"):
         """Compute class weights based on the labels distribution in the
         dataset. Optionally a 'smooth' function may be passed to
         smoothen the weights' statistics.
         """
-        assert smooth in [None, 'sqrt', 'log']
+        assert smooth in [None, "sqrt", "log"]
 
         # Read the first NAG just to know how many levels we have in the
         # preprocessed NAGs.
@@ -634,15 +653,14 @@ class BaseDataset(InMemoryDataset):
             if self.in_memory:
                 y = self.in_memory_data[i][low].y
             else:
-                y = NAG.load(
-                    self.processed_paths[i], low=low, keys_low=['y'])[0].y
-            counts += y.sum(dim=0)[:self.num_classes]
+                y = NAG.load(self.processed_paths[i], low=low, keys_low=["y"])[0].y
+            counts += y.sum(dim=0)[: self.num_classes]
 
         # Compute the class weights. Optionally, a 'smooth' function may
         # be applied to smoothen the weights statistics
-        if smooth == 'sqrt':
+        if smooth == "sqrt":
             counts = counts.sqrt()
-        if smooth == 'log':
+        if smooth == "log":
             counts = counts.log()
 
         weights = 1 / (counts + 1)
@@ -663,10 +681,11 @@ class BaseDataset(InMemoryDataset):
         # Prepare from_hdd
         from_hdd = False
         if isinstance(idx, tuple):
-            assert len(idx) == 2 and isinstance(idx[1], bool), \
-                "Only supports indexing with `int` or `(int, bool)` where the" \
-                " boolean indicates whether the data should be loaded from " \
+            assert len(idx) == 2 and isinstance(idx[1], bool), (
+                "Only supports indexing with `int` or `(int, bool)` where the"
+                " boolean indicates whether the data should be loaded from "
                 "disk, when `self.in_memory=True`."
+            )
             idx, from_hdd = idx
 
         # Get the processed NAG directly from RAM
@@ -677,7 +696,8 @@ class BaseDataset(InMemoryDataset):
         nag = NAG.load(
             self.processed_paths[idx],
             keys_low=self.point_load_keys,
-            keys=self.segment_load_keys)
+            keys=self.segment_load_keys,
+        )
 
         # Apply transforms
         nag = nag if self.transform is None else self.transform(nag)

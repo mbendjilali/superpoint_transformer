@@ -34,12 +34,14 @@ if len(_intersection_tr) > 0:
         raise Exception(
             f"It seems that you are overriding a transform from pytorch "
             f"geometric, this is forbidden, please rename your classes "
-            f"{_intersection_tr} from {_intersection_cls}")
+            f"{_intersection_tr} from {_intersection_cls}"
+        )
     else:
         raise Exception(
             f"It seems you are importing transforms {_intersection_tr} "
             f"from pytorch geometric within the current code base. Please, "
-            f"remove them or add them within a class, function, etc.")
+            f"remove them or add them within a class, function, etc."
+        )
 
 
 def instantiate_transform(transform_option, attr="transform"):
@@ -63,13 +65,13 @@ def instantiate_transform(transform_option, attr="transform"):
 
     # Parse the transform arguments
     try:
-        tr_params = transform_option.get('params')  # Update to OmegaConf 2.0
+        tr_params = transform_option.get("params")  # Update to OmegaConf 2.0
         if tr_params is not None:
             tr_params = OmegaConf.to_container(tr_params, resolve=True)
     except KeyError:
         tr_params = None
     try:
-        lparams = transform_option.get('lparams')  # Update to OmegaConf 2.0
+        lparams = transform_option.get("lparams")  # Update to OmegaConf 2.0
         if lparams is not None:
             lparams = OmegaConf.to_container(lparams, resolve=True)
     except KeyError:
@@ -108,12 +110,13 @@ def instantiate_transforms(transform_options):
     for i in range(1, len(transforms)):
         t_out = transforms[i - 1]
         t_in = transforms[i]
-        out_type = getattr(t_out, '_OUT_TYPE', Data)
-        in_type = getattr(t_in, '_IN_TYPE', Data)
+        out_type = getattr(t_out, "_OUT_TYPE", Data)
+        in_type = getattr(t_in, "_IN_TYPE", Data)
         if in_type != out_type:
             raise ValueError(
                 f"Cannot compose transforms: {t_out} returns a {out_type} "
-                f"while {t_in} expects a {in_type} input.")
+                f"while {t_in} expects a {in_type} input."
+            )
 
     return pygT.Compose(transforms)
 
@@ -130,6 +133,6 @@ def explode_transform(transform_list):
             out = copy.deepcopy(transform_list)
         else:
             raise Exception(
-                "Transforms should be provided either within a list or "
-                "a Compose")
+                "Transforms should be provided either within a list or " "a Compose"
+            )
     return out

@@ -6,6 +6,7 @@ import os
 from torchmetrics.classification import MulticlassConfusionMatrix
 from torch_scatter import scatter_add
 
+
 class ConfusionMatrix(MulticlassConfusionMatrix):
     """TorchMetrics's MulticlassConfusionMatrix but tailored to our
     needs. In particular, new methods allow computing OA, mAcc, mIoU
@@ -23,8 +24,8 @@ class ConfusionMatrix(MulticlassConfusionMatrix):
 
     def __init__(self, num_classes, ignore_index=None):
         super().__init__(
-            num_classes, ignore_index=ignore_index, normalize=None,
-            validate_args=False)
+            num_classes, ignore_index=ignore_index, normalize=None, validate_args=False
+        )
 
     def update(self, preds, target):
         """Update state with predictions and targets. Extends the
@@ -56,11 +57,14 @@ class ConfusionMatrix(MulticlassConfusionMatrix):
         # confusion matrix from the histograms without computing the
         # corresponding atomic pred-target 1D-tensor pairs
         if target.dim() == 2 and target.shape[1] == self.num_classes:
-            if self.ignore_index is not None and \
-                    0 <= self.ignore_index < self.num_classes:
+            if (
+                self.ignore_index is not None
+                and 0 <= self.ignore_index < self.num_classes
+            ):
                 target[self.ignore_index] = 0
             confmat = scatter_add(
-                target.float(), preds, dim=0, dim_size=self.num_classes)
+                target.float(), preds, dim=0, dim_size=self.num_classes
+            )
             self.confmat += confmat.T.long()
             return
 
@@ -181,17 +185,20 @@ class ConfusionMatrix(MulticlassConfusionMatrix):
         miou = self.miou()
         class_iou = self.iou()
 
-        print(f'OA: {oa:0.2f}')
-        print(f'mAcc: {macc:0.2f}')
-        print(f'mIoU: {miou:0.2f}')
+        print(f"OA: {oa:0.2f}")
+        print(f"mAcc: {macc:0.2f}")
+        print(f"mIoU: {miou:0.2f}")
 
-        class_names = class_names if class_names is not None \
-            else [f'class-{i}' for i in range(self.num_classes)]
+        class_names = (
+            class_names
+            if class_names is not None
+            else [f"class-{i}" for i in range(self.num_classes)]
+        )
         for c, iou, seen in zip(class_names, class_iou[0], class_iou[1]):
             if not seen:
-                print(f'  {c:<13}: not seen')
+                print(f"  {c:<13}: not seen")
                 continue
-            print(f'  {c:<13}: {iou:0.2f}')
+            print(f"  {c:<13}: {iou:0.2f}")
 
 
 def save_confusion_matrix(cm, path2save, ordered_names):
@@ -209,8 +216,13 @@ def save_confusion_matrix(cm, path2save, ordered_names):
     cmn[np.isnan(cmn) | np.isinf(cmn)] = 0
     fig, ax = plt.subplots(figsize=(31, 31))
     sns.heatmap(
-        cmn, annot=True, fmt=".2f", xticklabels=ordered_names,
-        yticklabels=ordered_names, annot_kws={"size": 20})
+        cmn,
+        annot=True,
+        fmt=".2f",
+        xticklabels=ordered_names,
+        yticklabels=ordered_names,
+        annot_kws={"size": 20},
+    )
     # g.set_xticklabels(g.get_xticklabels(), rotation = 35, fontsize = 20)
     plt.ylabel("Actual")
     plt.xlabel("Predicted")
@@ -222,8 +234,13 @@ def save_confusion_matrix(cm, path2save, ordered_names):
     cmn[np.isnan(cmn) | np.isinf(cmn)] = 0
     fig, ax = plt.subplots(figsize=(31, 31))
     sns.heatmap(
-        cmn, annot=True, fmt=".2f", xticklabels=ordered_names,
-        yticklabels=ordered_names, annot_kws={"size": 20})
+        cmn,
+        annot=True,
+        fmt=".2f",
+        xticklabels=ordered_names,
+        yticklabels=ordered_names,
+        annot_kws={"size": 20},
+    )
     # g.set_xticklabels(g.get_xticklabels(), rotation = 35, fontsize = 20)
     plt.ylabel("Actual")
     plt.xlabel("Predicted")

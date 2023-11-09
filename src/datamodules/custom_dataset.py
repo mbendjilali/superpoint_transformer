@@ -17,6 +17,7 @@ class CustomDatasetModule(BaseDataModule):
         _MINIDATASET_CLASS = ...
     ```
     """
+
     _DATASET_CLASS = CustomDataset
     _MINIDATASET_CLASS = MiniCustomDataset
 

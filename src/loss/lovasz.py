@@ -2,7 +2,7 @@ import torch
 from torch.nn.modules.loss import _Loss
 
 
-__all__ = ['LovaszLoss']
+__all__ = ["LovaszLoss"]
 
 
 class LovaszLoss(_Loss):
@@ -45,8 +45,13 @@ class LovaszLoss(_Loss):
     """
 
     def __init__(
-            self, normalization='softmax', class_to_sum='present',
-            reduction='sum', ignore_index=-1, weight=None):
+        self,
+        normalization="softmax",
+        class_to_sum="present",
+        reduction="sum",
+        ignore_index=-1,
+        weight=None,
+    ):
         super().__init__(reduction=reduction)
         self.ignore_index = ignore_index
         self.normalization = normalization
@@ -55,14 +60,25 @@ class LovaszLoss(_Loss):
 
     def forward(self, input, target):
         return lovasz(
-            input, target, normalization=self.normalization,
-            class_to_sum=self.class_to_sum, reduction=self.reduction,
-            ignore_index=self.ignore_index, weight=self.weight)
+            input,
+            target,
+            normalization=self.normalization,
+            class_to_sum=self.class_to_sum,
+            reduction=self.reduction,
+            ignore_index=self.ignore_index,
+            weight=self.weight,
+        )
 
 
 def lovasz(
-        logits, labels, normalization='softmax', class_to_sum='present',
-        reduction='sum', ignore_index=-1, weight=None):
+    logits,
+    labels,
+    normalization="softmax",
+    class_to_sum="present",
+    reduction="sum",
+    ignore_index=-1,
+    weight=None,
+):
     """Multi-class Lovasz-Softmax loss.
 
     Re-implementation of:
@@ -107,12 +123,12 @@ def lovasz(
     assert logits.shape[1] > 1
 
     # Check validity of reduction mode
-    if reduction != 'none' and reduction != 'sum':
+    if reduction != "none" and reduction != "sum":
         raise ValueError(reduction + " is not valid")
 
     # Exclude the 0-point edge case
     if logits.numel() == 0:
-        return logits * 0.
+        return logits * 0.0
 
     # Initialize class weights to 1s if not provided
     class_weight = torch.ones_like(logits[0]) if weight is None else weight
@@ -133,15 +149,15 @@ def lovasz(
     # Again, exclude the 0-point situation, in case the point_mask
     # removed the only points we initially had
     if logits.numel() == 0:
-        return logits * 0.
+        return logits * 0.0
 
     # Convert logits to probabilities
-    if normalization == 'softmax':
+    if normalization == "softmax":
         probas = logits.float().softmax(dim=1)
     elif logits.ge(0).all():
         probas = logits.float() / logits.sum(dim=1).view(-1, 1)
     else:
-        raise ValueError('logits must all be positive')
+        raise ValueError("logits must all be positive")
 
     # One-hot encode the labels and compute the class-wise errors, for
     # each point
@@ -150,9 +166,9 @@ def lovasz(
 
     # If required, mask out classes that are not present or that are
     # explicitly excluded from class_to_sum
-    if class_to_sum == 'all':
+    if class_to_sum == "all":
         class_mask = torch.ones(num_classes, device=device, dtype=torch.bool)
-    elif class_to_sum == 'present':
+    elif class_to_sum == "present":
         class_mask = fg.sum(dim=0) > 0
     else:
         class_mask = torch.zeros(num_classes, device=device, dtype=torch.bool)
@@ -166,9 +182,9 @@ def lovasz(
     fg = torch.gather(fg, 0, perm)
 
     # Compute the final loss
-    loss = (errors * lovasz_gradient(fg))
+    loss = errors * lovasz_gradient(fg)
     loss = loss * class_weight.view(1, -1)
-    if reduction == 'sum':
+    if reduction == "sum":
         return loss.mean(dim=1).sum()
     else:
         inv_perm = perm.argsort(dim=0)
@@ -176,12 +192,11 @@ def lovasz(
 
 
 def lovasz_gradient(gt_sorted):
-    """Computes gradient of the Lovasz extension w.r.t sorted errors.
-    """
+    """Computes gradient of the Lovasz extension w.r.t sorted errors."""
     gts = gt_sorted.sum(dim=0).view(1, -1)
     intersection = gts - gt_sorted.float().cumsum(dim=0)
     union = gts + (1 - gt_sorted).float().cumsum(dim=0)
-    jaccard = 1. - intersection / union
+    jaccard = 1.0 - intersection / union
     if gt_sorted.shape[0] > 1:
         jaccard[1:] = jaccard[1:] - jaccard[:-1]
     return jaccard

@@ -10,12 +10,12 @@ import src.transforms
 import src.utils
 import src.visualization
 
-__version__ = '0.0.1'
+__version__ = "0.0.1"
 
 __all__ = [
-    'is_debug_enabled',
-    'debug',
-    'set_debug',
-    'src',
-    '__version__', 
+    "is_debug_enabled",
+    "debug",
+    "set_debug",
+    "src",
+    "__version__",
 ]

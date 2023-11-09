@@ -33,6 +33,7 @@ class KITTI360DataModule(BaseDataModule):
     Read the docs:
         https://pytorch-lightning.readthedocs.io/en/latest/data/datamodule.html
     """
+
     _DATASET_CLASS = KITTI360
     _MINIDATASET_CLASS = MiniKITTI360
 

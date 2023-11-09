@@ -2,8 +2,7 @@ import torch
 import numpy as np
 
 
-__all__ = [
-    'cross_product_matrix', 'rodrigues_rotation_matrix', 'base_vectors_3d']
+__all__ = ["cross_product_matrix", "rodrigues_rotation_matrix", "base_vectors_3d"]
 
 
 def cross_product_matrix(k):
@@ -12,7 +11,8 @@ def cross_product_matrix(k):
     Credit: https://github.com/torch-points3d/torch-points3d
     """
     return torch.tensor(
-        [[0, -k[2], k[1]], [k[2], 0, -k[0]], [-k[1], k[0], 0]], device=k.device)
+        [[0, -k[2], k[1]], [k[2], 0, -k[0]], [-k[1], k[0], 0]], device=k.device
+    )
 
 
 def rodrigues_rotation_matrix(axis, theta_degrees):
@@ -24,9 +24,12 @@ def rodrigues_rotation_matrix(axis, theta_degrees):
     """
     axis = axis / axis.norm()
     K = cross_product_matrix(axis)
-    t = torch.tensor([theta_degrees / 180. * np.pi], device=axis.device)
-    R = torch.eye(3, device=axis.device) \
-        + torch.sin(t) * K + (1 - torch.cos(t)) * K.mm(K)
+    t = torch.tensor([theta_degrees / 180.0 * np.pi], device=axis.device)
+    R = (
+        torch.eye(3, device=axis.device)
+        + torch.sin(t) * K
+        + (1 - torch.cos(t)) * K.mm(K)
+    )
     return R
 
 
@@ -45,7 +48,8 @@ def base_vectors_3d(x):
 
     # If x is 0 vector (norm=0), arbitrarily put a to (1, 0, 0)
     a[torch.where(a.norm(dim=1) == 0)[0]] = torch.tensor(
-        [[1, 0, 0]], dtype=x.dtype, device=x.device)
+        [[1, 0, 0]], dtype=x.dtype, device=x.device
+    )
 
     # Safely normalize a
     a = a / a.norm(dim=1).view(-1, 1)
@@ -57,7 +61,8 @@ def base_vectors_3d(x):
     # may be 0 by construction (ie a is of type (v, v, v)). So we need
     # to deal with this edge case by setting
     b[torch.where(b.norm(dim=1) == 0)[0]] = torch.tensor(
-        [[2, 1, -1]], dtype=x.dtype, device=x.device)
+        [[2, 1, -1]], dtype=x.dtype, device=x.device
+    )
 
     # Safely normalize b
     b /= b.norm(dim=1).view(-1, 1)

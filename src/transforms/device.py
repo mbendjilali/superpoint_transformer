@@ -3,7 +3,7 @@ from src.transforms import Transform
 from src.data import NAG
 
 
-__all__ = ['DataTo', 'NAGTo']
+__all__ = ["DataTo", "NAGTo"]
 
 
 class DataTo(Transform):

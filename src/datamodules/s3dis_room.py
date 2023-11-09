@@ -7,7 +7,8 @@ from src.datasets import S3DISRoom, MiniS3DISRoom
 # machines. Hack to solve this:
 # https://stackoverflow.com/questions/73125231/pytorch-dataloaders-bad-file-descriptor-and-eof-for-workers0
 import torch.multiprocessing
-torch.multiprocessing.set_sharing_strategy('file_system')
+
+torch.multiprocessing.set_sharing_strategy("file_system")
 
 
 log = logging.getLogger(__name__)
@@ -40,6 +41,7 @@ class S3DISRoomDataModule(BaseDataModule):
     Read the docs:
         https://pytorch-lightning.readthedocs.io/en/latest/data/datamodule.html
     """
+
     _DATASET_CLASS = S3DISRoom
     _MINIDATASET_CLASS = MiniS3DISRoom
 

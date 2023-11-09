@@ -8,13 +8,18 @@ from torch_geometric.utils import degree
 
 
 __all__ = [
-    'BatchNorm', 'UnitSphereNorm', 'LayerNorm', 'InstanceNorm', 'GraphNorm',
-    'GroupNorm', 'INDEX_BASED_NORMS']
+    "BatchNorm",
+    "UnitSphereNorm",
+    "LayerNorm",
+    "InstanceNorm",
+    "GraphNorm",
+    "GroupNorm",
+    "INDEX_BASED_NORMS",
+]
 
 
 class BatchNorm(nn.Module):
-    """Credits: https://github.com/torch-points3d/torch-points3d
-    """
+    """Credits: https://github.com/torch-points3d/torch-points3d"""
 
     def __init__(self, num_features, **kwargs):
         super().__init__()
@@ -41,8 +46,7 @@ class BatchNorm(nn.Module):
         elif x.dim() == 3:
             return self._forward_dense(x)
         else:
-            raise ValueError(
-                "Non supported number of dimensions {}".format(x.dim()))
+            raise ValueError("Non supported number of dimensions {}".format(x.dim()))
 
 
 class UnitSphereNorm(nn.Module):
@@ -68,8 +72,7 @@ class UnitSphereNorm(nn.Module):
         if idx is None:
             pos, diameter = self._forward(pos, w=w)
         else:
-            pos, diameter = self._forward_scatter(
-                pos, idx, w=w, num_super=num_super)
+            pos, diameter = self._forward_scatter(pos, idx, w=w, num_super=num_super)
 
         # Log-normalize the diameter if required. This facilitates using
         # the diameter as a feature in downstream learning tasks
@@ -110,18 +113,16 @@ class UnitSphereNorm(nn.Module):
         """
         # Compute the diameter (ie the maximum span along the main axes
         # here)
-        min_segment = scatter(pos, idx, dim=0, dim_size=num_super, reduce='min')
-        max_segment = scatter(pos, idx, dim=0, dim_size=num_super, reduce='max')
+        min_segment = scatter(pos, idx, dim=0, dim_size=num_super, reduce="min")
+        max_segment = scatter(pos, idx, dim=0, dim_size=num_super, reduce="max")
         diameter_segment = (max_segment - min_segment).max(dim=1).values
 
         # Compute the center of the nodes. If node weights are provided,
         # the weighted mean is computed
         if w is None:
-            center_segment = scatter(
-                pos, idx, dim=0, dim_size=num_super, reduce='mean')
+            center_segment = scatter(pos, idx, dim=0, dim_size=num_super, reduce="mean")
         else:
-            center_segment = scatter_mean_weighted(
-                pos, idx, w, dim_size=num_super)
+            center_segment = scatter_mean_weighted(pos, idx, w, dim_size=num_super)
 
         # Compute per-node center and diameter
         center = center_segment[idx]
@@ -147,13 +148,13 @@ class GroupNorm(torch.nn.Module):
         based on the input `batch` they belong to. `mode='node'` will
         apply BatchNorm on each node separately.
     """
-    def __init__(
-            self, in_channels, num_groups=4, eps=1e-5, affine=True,
-            mode='graph'):
+
+    def __init__(self, in_channels, num_groups=4, eps=1e-5, affine=True, mode="graph"):
         super().__init__()
 
-        assert in_channels % num_groups == 0, \
-            f"`in_channels` must be a multiple of `num_groups`"
+        assert (
+            in_channels % num_groups == 0
+        ), f"`in_channels` must be a multiple of `num_groups`"
         self.in_channels = in_channels
         self.num_groups = num_groups
         self.group_channels = in_channels // num_groups
@@ -164,8 +165,8 @@ class GroupNorm(torch.nn.Module):
             self.weight = nn.Parameter(torch.Tensor(in_channels))
             self.bias = nn.Parameter(torch.Tensor(in_channels))
         else:
-            self.register_parameter('weight', None)
-            self.register_parameter('bias', None)
+            self.register_parameter("weight", None)
+            self.register_parameter("bias", None)
 
         self.reset_parameters()
 
@@ -175,14 +176,13 @@ class GroupNorm(torch.nn.Module):
 
     def forward(self, x, batch=None):
         """"""
-        if self.mode == 'graph':
+        if self.mode == "graph":
 
             # If graph-wise normalization mode and 'batch' is not
             # provided, we consider all input nodes to belong to the
             # same graph
             if batch is None:
-                batch = torch.zeros(
-                    x.shape[0], dtype=torch.long, device=x.device)
+                batch = torch.zeros(x.shape[0], dtype=torch.long, device=x.device)
 
             # Separate group features using a new dimension
             x = x.view(-1, self.num_groups, self.group_channels)
@@ -193,17 +193,23 @@ class GroupNorm(torch.nn.Module):
             norm = norm.mul_(self.group_channels).view(-1, 1, 1)
 
             # Compute the groupwise mean
-            mean = scatter(
-                x, batch, dim=0, dim_size=batch_size, reduce='add').sum(
-                dim=-1, keepdim=True) / norm
+            mean = (
+                scatter(x, batch, dim=0, dim_size=batch_size, reduce="add").sum(
+                    dim=-1, keepdim=True
+                )
+                / norm
+            )
 
             # Groupwise mean-centering
             x = x - mean.index_select(0, batch)
 
             # Compute the groupwise variance
-            var = scatter(
-                x * x, batch, dim=0, dim_size=batch_size, reduce='add').sum(
-                dim=-1, keepdim=True) / norm
+            var = (
+                scatter(x * x, batch, dim=0, dim_size=batch_size, reduce="add").sum(
+                    dim=-1, keepdim=True
+                )
+                / norm
+            )
 
             # Groupwise std scaling
             out = x / (var + self.eps).sqrt().index_select(0, batch)
@@ -218,18 +224,20 @@ class GroupNorm(torch.nn.Module):
             return out
 
         # GroupNorm in a node wise fashion
-        if self.mode == 'node':
+        if self.mode == "node":
             if batch is None:
                 out = nn.functional.group_norm(
-                    x, self.num_groups, weight=self.weight, bias=self.bias,
-                    eps=self.eps)
+                    x, self.num_groups, weight=self.weight, bias=self.bias, eps=self.eps
+                )
                 return out
 
         raise ValueError(f"Unknown normalization mode: {self.mode}")
 
     def __repr__(self):
-        return (f'{self.__class__.__name__}(in_channels={self.in_channels}, '
-                f'num_groups={self.num_groups}, mode={self.mode})')
+        return (
+            f"{self.__class__.__name__}(in_channels={self.in_channels}, "
+            f"num_groups={self.num_groups}, mode={self.mode})"
+        )
 
 
 INDEX_BASED_NORMS = (LayerNorm, InstanceNorm, GraphNorm, GroupNorm)

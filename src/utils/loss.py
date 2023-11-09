@@ -1,7 +1,7 @@
 import torch
 
 
-__all__ = ['loss_with_sample_weights', 'loss_with_target_histogram']
+__all__ = ["loss_with_sample_weights", "loss_with_target_histogram"]
 
 
 def loss_with_sample_weights(criterion, preds, y, weights):
@@ -9,7 +9,7 @@ def loss_with_sample_weights(criterion, preds, y, weights):
     assert preds.shape[0] == y.shape[0] == weights.shape[0]
 
     reduction_backup = criterion.reduction
-    criterion.reduction = 'none'
+    criterion.reduction = "none"
 
     weights = weights.float() / weights.sum()
 
@@ -32,7 +32,6 @@ def loss_with_target_histogram(criterion, preds, y_hist):
     y_flat = torch.where(y_mask)[1]
     weights = y_hist[y_mask]
 
-    loss = loss_with_sample_weights(
-        criterion, logits_flat, y_flat, weights)
+    loss = loss_with_sample_weights(criterion, logits_flat, y_flat, weights)
 
     return loss

@@ -1,7 +1,7 @@
 from torch.utils.data import DataLoader as TorchDataLoader
 
 
-__all__ = ['DataLoader']
+__all__ = ["DataLoader"]
 
 
 class DataLoader(TorchDataLoader):
@@ -17,6 +17,7 @@ class DataLoader(TorchDataLoader):
     operation (but beware of collisions with our
     'DataModule.on_after_batch_transfer' implementation.
     """
+
     def __init__(self, *args, collate_fn=None, **kwargs):
         if collate_fn is None:
             collate_fn = lambda batch_list: batch_list

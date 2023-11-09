@@ -22,40 +22,49 @@ log = logging.getLogger(__name__)
 # solve this:
 # https://stackoverflow.com/questions/73125231/pytorch-dataloaders-bad-file-descriptor-and-eof-for-workers0
 import torch.multiprocessing
-torch.multiprocessing.set_sharing_strategy('file_system')
+
+torch.multiprocessing.set_sharing_strategy("file_system")
 
 
-__all__ = ['KITTI360', 'MiniKITTI360']
+__all__ = ["KITTI360", "MiniKITTI360"]
 
 
 ########################################################################
 #                                 Utils                                #
 ########################################################################
 
+
 def read_kitti360_window(
-        filepath, xyz=True, rgb=True, semantic=True, instance=False,
-        remap=False):
+    filepath, xyz=True, rgb=True, semantic=True, instance=False, remap=False
+):
     data = Data()
     with open(filepath, "rb") as f:
         window = PlyData.read(f)
-        attributes = [p.name for p in window['vertex'].properties]
+        attributes = [p.name for p in window["vertex"].properties]
 
         if xyz:
-            data.pos = torch.stack([
-                torch.FloatTensor(window["vertex"][axis])
-                for axis in ["x", "y", "z"]], dim=-1)
+            data.pos = torch.stack(
+                [torch.FloatTensor(window["vertex"][axis]) for axis in ["x", "y", "z"]],
+                dim=-1,
+            )
 
         if rgb:
-            data.rgb = to_float_rgb(torch.stack([
-                torch.FloatTensor(window["vertex"][axis])
-                for axis in ["red", "green", "blue"]], dim=-1))
+            data.rgb = to_float_rgb(
+                torch.stack(
+                    [
+                        torch.FloatTensor(window["vertex"][axis])
+                        for axis in ["red", "green", "blue"]
+                    ],
+                    dim=-1,
+                )
+            )
 
-        if semantic and 'semantic' in attributes:
-            y = torch.LongTensor(window["vertex"]['semantic'])
+        if semantic and "semantic" in attributes:
+            y = torch.LongTensor(window["vertex"]["semantic"])
             data.y = torch.from_numpy(ID2TRAINID)[y] if remap else y
 
-        if instance and 'instance' in attributes:
-            data.instance = torch.LongTensor(window["vertex"]['instance'])
+        if instance and "instance" in attributes:
+            data.instance = torch.LongTensor(window["vertex"]["instance"])
 
     return data
 
@@ -63,6 +72,7 @@ def read_kitti360_window(
 ########################################################################
 #                               KITTI360                               #
 ########################################################################
+
 
 class KITTI360(BaseDataset):
     """KITTI360 dataset.
@@ -121,18 +131,18 @@ class KITTI360(BaseDataset):
         return WINDOWS
 
     def download_dataset(self):
-        """Download the KITTI-360 dataset.
-        """
+        """Download the KITTI-360 dataset."""
         # Name of the downloaded dataset zip
-        zip_name = self._test_zip_name if self.stage == 'test' \
-            else self._trainval_zip_name
+        zip_name = (
+            self._test_zip_name if self.stage == "test" else self._trainval_zip_name
+        )
 
         # Accumulated 3D point clouds with annotations
         if not osp.exists(osp.join(self.root, zip_name)):
-            if self.stage != 'test':
-                msg = 'Accumulated Point Clouds for Train & Val (12G)'
+            if self.stage != "test":
+                msg = "Accumulated Point Clouds for Train & Val (12G)"
             else:
-                msg = 'Accumulated Point Clouds for Test (1.2G)'
+                msg = "Accumulated Point Clouds for Test (1.2G)"
             log.error(
                 f"\nKITTI-360 does not support automatic download.\n"
                 f"Please go to the official webpage {self._form_url}, "
@@ -140,26 +150,28 @@ class KITTI360(BaseDataset):
                 f"'{self.root}/' directory, and re-run.\n"
                 f"The dataset will automatically be unzipped into the "
                 f"following structure:\n"
-                f"{self.raw_file_structure}\n")
+                f"{self.raw_file_structure}\n"
+            )
             sys.exit(1)
 
         # Unzip the file and place its content into the expected data
         # structure inside `root/raw/` directory
         extract_zip(osp.join(self.root, zip_name), self.raw_dir)
-        stage = 'test' if self.stage == 'test' else 'train'
-        seqs = os.listdir(osp.join(self.raw_dir, 'data_3d_semantics', stage))
+        stage = "test" if self.stage == "test" else "train"
+        seqs = os.listdir(osp.join(self.raw_dir, "data_3d_semantics", stage))
         for seq in seqs:
-            source = osp.join(self.raw_dir, 'data_3d_semantics', stage, seq)
-            target = osp.join(self.raw_dir, 'data_3d_semantics', seq)
+            source = osp.join(self.raw_dir, "data_3d_semantics", stage, seq)
+            target = osp.join(self.raw_dir, "data_3d_semantics", seq)
             shutil.move(source, target)
-        shutil.rmtree(osp.join(self.raw_dir, 'data_3d_semantics', stage))
+        shutil.rmtree(osp.join(self.raw_dir, "data_3d_semantics", stage))
 
     def read_single_raw_cloud(self, raw_cloud_path):
         """Read a single raw cloud and return a Data object, ready to
         be passed to `self.pre_transform`.
         """
         return read_kitti360_window(
-            raw_cloud_path, semantic=True, instance=False, remap=True)
+            raw_cloud_path, semantic=True, instance=False, remap=True
+        )
 
     @property
     def raw_file_structure(self):
@@ -179,24 +191,29 @@ class KITTI360(BaseDataset):
         """
         id = self.id_to_base_id(id)
         return osp.join(
-            'data_3d_semantics', id.split('/')[0], 'static',
-            id.split('/')[1] + '.ply')
+            "data_3d_semantics", id.split("/")[0], "static", id.split("/")[1] + ".ply"
+        )
 
     def processed_to_raw_path(self, processed_path):
         """Return the raw cloud path corresponding to the input
         processed path.
         """
         # Extract useful information from <path>
-        stage, hash_dir, sequence_name, cloud_id = \
-            osp.splitext(processed_path)[0].split('/')[-4:]
+        stage, hash_dir, sequence_name, cloud_id = osp.splitext(processed_path)[
+            0
+        ].split("/")[-4:]
 
         # Remove the tiling in the cloud_id, if any
         base_cloud_id = self.id_to_base_id(cloud_id)
 
         # Read the raw cloud data
         raw_path = osp.join(
-            self.raw_dir, 'data_3d_semantics', sequence_name, 'static',
-            base_cloud_id + '.ply')
+            self.raw_dir,
+            "data_3d_semantics",
+            sequence_name,
+            "static",
+            base_cloud_id + ".ply",
+        )
 
         return raw_path
 
@@ -210,13 +227,15 @@ class KITTI360(BaseDataset):
         if self.xy_tiling or self.pc_tiling:
             raise NotImplementedError(
                 f"Submission generation not implemented for tiled KITTI360 "
-                f"datasets yet...")
+                f"datasets yet..."
+            )
 
         # Make sure the prediction is a 1D tensor
         if pred.dim() != 1:
             raise ValueError(
-                f'The submission predictions must be 1D tensors, '
-                f'received {type(pred)} of shape {pred.shape} instead.')
+                f"The submission predictions must be 1D tensors, "
+                f"received {type(pred)} of shape {pred.shape} instead."
+            )
 
         # Initialize the submission directory
         submission_dir = submission_dir or self.submission_dir
@@ -225,7 +244,8 @@ class KITTI360(BaseDataset):
 
         # Read the raw point cloud
         raw_path = osp.join(
-            self.raw_dir, self.id_to_relative_raw_path(self.cloud_ids[idx]))
+            self.raw_dir, self.id_to_relative_raw_path(self.cloud_ids[idx])
+        )
         data_raw = self.read_single_raw_cloud(raw_path)
 
         # Search the nearest neighbor of each point and apply the
@@ -240,11 +260,10 @@ class KITTI360(BaseDataset):
         # Recover sequence and window information from stage dataset's
         # windows and format those to match the expected file name:
         # {seq:0>4}_{start_frame:0>10}_{end_frame:0>10}.npy
-        sequence_name, window_name = self.id_to_base_id(
-            self.cloud_ids[idx]).split('/')
-        seq = sequence_name.split('_')[-2]
-        start_frame, end_frame = window_name.split('_')
-        filename = f'{seq:0>4}_{start_frame:0>10}_{end_frame:0>10}.npy'
+        sequence_name, window_name = self.id_to_base_id(self.cloud_ids[idx]).split("/")
+        seq = sequence_name.split("_")[-2]
+        start_frame, end_frame = window_name.split("_")
+        filename = f"{seq:0>4}_{start_frame:0>10}_{end_frame:0>10}.npy"
 
         # Save the window submission
         np.save(osp.join(submission_dir, filename), pred_remapped)
@@ -254,8 +273,8 @@ class KITTI360(BaseDataset):
         been saved using `self._make_submission`. This will zip them
         together as expected by the KITTI360 submission server.
         """
-        zipObj = ZipFile(f'{submission_dir}.zip', 'w')
-        for p in glob.glob(osp.join(submission_dir, '*.npy')):
+        zipObj = ZipFile(f"{submission_dir}.zip", "w")
+        for p in glob.glob(osp.join(submission_dir, "*.npy")):
             zipObj.write(p)
         zipObj.close()
 
@@ -264,15 +283,17 @@ class KITTI360(BaseDataset):
 #                             MiniKITTI360                             #
 ########################################################################
 
+
 class MiniKITTI360(KITTI360):
     """A mini version of KITTI360 with only a few windows for
     experimentation.
     """
+
     _NUM_MINI = 2
 
     @property
     def all_cloud_ids(self):
-        return {k: v[:self._NUM_MINI] for k, v in super().all_cloud_ids.items()}
+        return {k: v[: self._NUM_MINI] for k, v in super().all_cloud_ids.items()}
 
     @property
     def data_subdir_name(self):

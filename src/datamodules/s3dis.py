@@ -33,6 +33,7 @@ class S3DISDataModule(BaseDataModule):
     Read the docs:
         https://pytorch-lightning.readthedocs.io/en/latest/data/datamodule.html
     """
+
     _DATASET_CLASS = S3DIS
     _MINIDATASET_CLASS = MiniS3DIS
 

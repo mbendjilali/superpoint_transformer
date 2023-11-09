@@ -1,9 +1,8 @@
 from src.transforms import Transform
-from src.utils.neighbors import knn_1, inliers_split, \
-    outliers_split
+from src.utils.neighbors import knn_1, inliers_split, outliers_split
 
 
-__all__ = ['KNN', 'Inliers', 'Outliers']
+__all__ = ["KNN", "Inliers", "Outliers"]
 
 
 class KNN(Transform):
@@ -31,11 +30,11 @@ class KNN(Transform):
     :param verbose: bool
     """
 
-    _NO_REPR = ['verbose']
+    _NO_REPR = ["verbose"]
 
     def __init__(
-            self, k=50, r_max=1, oversample=False, self_is_neighbor=False,
-            verbose=False):
+        self, k=50, r_max=1, oversample=False, self_is_neighbor=False, verbose=False
+    ):
         self.k = k
         self.r_max = r_max
         self.oversample = oversample
@@ -44,8 +43,13 @@ class KNN(Transform):
 
     def _process(self, data):
         neighbors, distances = knn_1(
-            data.pos, self.k, r_max=self.r_max, oversample=self.oversample,
-            self_is_neighbor=self.self_is_neighbor, verbose=self.verbose)
+            data.pos,
+            self.k,
+            r_max=self.r_max,
+            oversample=self.oversample,
+            self_is_neighbor=self.self_is_neighbor,
+            verbose=self.verbose,
+        )
         data.neighbor_index = neighbors
         data.neighbor_distance = distances
         return data
@@ -63,8 +67,8 @@ class Inliers(Transform):
     """
 
     def __init__(
-            self, k_min, r_max=1, recursive=False, update_sub=False,
-            update_super=False):
+        self, k_min, r_max=1, recursive=False, update_sub=False, update_super=False
+    ):
         self.k_min = k_min
         self.r_max = r_max
         self.recursive = recursive
@@ -74,12 +78,18 @@ class Inliers(Transform):
     def _process(self, data):
         # Actual outlier search, optionally recursive
         idx = inliers_split(
-            data.pos, data.pos, self.k_min, r_max=self.r_max,
-            recursive=self.recursive, q_in_s=True)
+            data.pos,
+            data.pos,
+            self.k_min,
+            r_max=self.r_max,
+            recursive=self.recursive,
+            q_in_s=True,
+        )
 
         # Select the points of interest in Data
         return data.select(
-            idx, update_sub=self.update_sub, update_super=self.update_super)
+            idx, update_sub=self.update_sub, update_super=self.update_super
+        )
 
 
 class Outliers(Transform):
@@ -94,8 +104,8 @@ class Outliers(Transform):
     """
 
     def __init__(
-            self, k_min, r_max=1, recursive=False, update_sub=False,
-            update_super=False):
+        self, k_min, r_max=1, recursive=False, update_sub=False, update_super=False
+    ):
         self.k_min = k_min
         self.r_max = r_max
         self.recursive = recursive
@@ -105,9 +115,15 @@ class Outliers(Transform):
     def _process(self, data):
         # Actual outlier search, optionally recursive
         idx = outliers_split(
-            data.pos, data.pos, self.k_min, r_max=self.r_max,
-            recursive=self.recursive, q_in_s=True)
+            data.pos,
+            data.pos,
+            self.k_min,
+            r_max=self.r_max,
+            recursive=self.recursive,
+            q_in_s=True,
+        )
 
         # Select the points of interest in Data
         return data.select(
-            idx, update_sub=self.update_sub, update_super=self.update_super)
+            idx, update_sub=self.update_sub, update_super=self.update_super
+        )

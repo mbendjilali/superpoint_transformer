@@ -2,12 +2,12 @@ from torch import nn
 from src.nn.norm import BatchNorm, INDEX_BASED_NORMS
 
 
-__all__ = ['MLP', 'FFN', 'Classifier']
+__all__ = ["MLP", "FFN", "Classifier"]
 
 
 def mlp(
-        dims, activation=nn.LeakyReLU(), last_activation=True,
-        norm=BatchNorm, drop=None):
+    dims, activation=nn.LeakyReLU(), last_activation=True, norm=BatchNorm, drop=None
+):
     """Helper to build MLP-like structures.
 
     :param dims: List[int]
@@ -53,12 +53,21 @@ class MLP(nn.Module):
     """
 
     def __init__(
-            self, dims, activation=nn.LeakyReLU(), last_activation=True,
-            norm=BatchNorm, drop=None):
+        self,
+        dims,
+        activation=nn.LeakyReLU(),
+        last_activation=True,
+        norm=BatchNorm,
+        drop=None,
+    ):
         super().__init__()
         self.mlp = mlp(
-            dims, activation=activation, last_activation=last_activation,
-            norm=norm, drop=drop)
+            dims,
+            activation=activation,
+            last_activation=last_activation,
+            norm=norm,
+            drop=drop,
+        )
         self.out_dim = dims[-1]
 
     def forward(self, x, batch=None):
@@ -81,8 +90,8 @@ class FFN(MLP):
     """
 
     def __init__(
-            self, dim, hidden_dim=None, out_dim=None, activation=nn.LeakyReLU(),
-            drop=None):
+        self, dim, hidden_dim=None, out_dim=None, activation=nn.LeakyReLU(), drop=None
+    ):
 
         # Build the channel sizes for the 2 linear layers
         hidden_dim = hidden_dim or dim
@@ -90,8 +99,8 @@ class FFN(MLP):
         channels = [dim, hidden_dim, out_dim]
 
         super().__init__(
-            channels, activation=activation, last_activation=False, norm=None,
-            drop=drop)
+            channels, activation=activation, last_activation=False, norm=None, drop=drop
+        )
 
 
 class Classifier(nn.Module):

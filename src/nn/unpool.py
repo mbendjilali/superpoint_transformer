@@ -1,7 +1,7 @@
 from torch import nn
 
 
-__all__ = ['IndexUnpool']
+__all__ = ["IndexUnpool"]
 
 
 class IndexUnpool(nn.Module):

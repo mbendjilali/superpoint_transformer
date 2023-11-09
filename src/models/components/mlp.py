@@ -4,7 +4,7 @@ from src.data import NAG
 from src.nn import MLP, BatchNorm
 
 
-__all__ = ['NodeMLP']
+__all__ = ["NodeMLP"]
 
 
 class NodeMLP(nn.Module):
@@ -14,8 +14,14 @@ class NodeMLP(nn.Module):
     """
 
     def __init__(
-            self, dims, level=0, activation=nn.LeakyReLU(), norm=BatchNorm,
-            drop=None, norm_mode='graph'):
+        self,
+        dims,
+        level=0,
+        activation=nn.LeakyReLU(),
+        norm=BatchNorm,
+        drop=None,
+        norm_mode="graph",
+    ):
 
         super().__init__()
 
@@ -42,8 +48,8 @@ class NodeMLP(nn.Module):
         # If node level is 0, max-pool to produce level-1 features
         if self.level == 0:
             return scatter(
-                x, nag[0].super_index, dim=0, dim_size=nag[1].num_nodes,
-                reduce='max')
+                x, nag[0].super_index, dim=0, dim_size=nag[1].num_nodes, reduce="max"
+            )
 
         # If node level is larger than 1, distribute parent features to
         # level-1 nodes

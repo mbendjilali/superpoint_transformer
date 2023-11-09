@@ -30,18 +30,17 @@ def read_tile(
         tile = laspy.read(f)
 
         data.pos = torch.stack(
-            [torch.FloatTensor(tile[ax])/3.28084 for ax in ["x", "y", "z"]],
+            [torch.FloatTensor(tile[ax]) / 3.28084 for ax in ["x", "y", "z"]],
             dim=-1,
         )
 
         # Heuristic to bring the intensity distribution in [0, 1]
         data.intensity = (
-            torch.FloatTensor(tile["intensity"].astype(float)).clip(min=0, max=60000) / 60000
+            torch.FloatTensor(tile["intensity"].astype(float)).clip(min=0, max=60000)
+            / 60000
         )
-        
-        data.elevation = (
-            torch.FloatTensor(tile["hag"].astype(float))
-        )
+
+        data.elevation = torch.FloatTensor(tile["hag"].astype(float))
 
         y = torch.LongTensor([ID2TRAINID[_] for _ in tile["classification"]])
         data.y = y  # type: ignore
@@ -96,10 +95,26 @@ class CustomDataset(BaseDataset):
             `{'train': [...], 'val': [...], 'test': [...]}`
         """
         TILES = {
-            "train": [str(_) for _ in (Path(self.raw_dir) / "train").iterdir() if _.suffix == ".las"],
-            "val": [str(_) for _ in (Path(self.raw_dir) / "val").iterdir() if _.suffix == ".las"],
-            "test": [str(_) for _ in (Path(self.raw_dir) / "test").iterdir() if _.suffix == ".las"],
-            "predict": [str(_) for _ in (Path(self.raw_dir) / "predict").iterdir() if _.suffix == ".las"],
+            "train": [
+                str(_)
+                for _ in (Path(self.raw_dir) / "train").iterdir()
+                if _.suffix == ".las"
+            ],
+            "val": [
+                str(_)
+                for _ in (Path(self.raw_dir) / "val").iterdir()
+                if _.suffix == ".las"
+            ],
+            "test": [
+                str(_)
+                for _ in (Path(self.raw_dir) / "test").iterdir()
+                if _.suffix == ".las"
+            ],
+            "predict": [
+                str(_)
+                for _ in (Path(self.raw_dir) / "predict").iterdir()
+                if _.suffix == ".las"
+            ],
         }
 
         return TILES
@@ -149,6 +164,7 @@ class CustomDataset(BaseDataset):
 
     def download_dataset(self):
         return None
+
 
 ########################################################################
 #                              MiniDALES                               #

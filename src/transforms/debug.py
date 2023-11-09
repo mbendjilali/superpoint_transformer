@@ -6,7 +6,7 @@ from src.transforms import Transform
 log = logging.getLogger(__name__)
 
 
-__all__ = ['HelloWorld']
+__all__ = ["HelloWorld"]
 
 
 class HelloWorld(Transform):

@@ -1,10 +1,13 @@
 import pyrootutils
 
-root = str(pyrootutils.setup_root(
-    search_from=__file__,
-    indicator=[".git", "README.md"],
-    pythonpath=True,
-    dotenv=True))
+root = str(
+    pyrootutils.setup_root(
+        search_from=__file__,
+        indicator=[".git", "README.md"],
+        pythonpath=True,
+        dotenv=True,
+    )
+)
 
 
 # ------------------------------------------------------------------------------------ #
@@ -88,8 +91,10 @@ def train(cfg: DictConfig) -> Tuple[dict, dict]:
     logger: List[Logger] = utils.instantiate_loggers(cfg.get("logger"))
 
     log.info(f"Instantiating trainer <{cfg.trainer._target_}>")
-    trainer: Trainer = hydra.utils.instantiate(cfg.trainer, callbacks=callbacks, logger=logger)
-    if float('.'.join(torch.__version__.split('.')[:2])) >= 2.0:
+    trainer: Trainer = hydra.utils.instantiate(
+        cfg.trainer, callbacks=callbacks, logger=logger
+    )
+    if float(".".join(torch.__version__.split(".")[:2])) >= 2.0:
         torch.set_float32_matmul_precision(cfg.float32_matmul_precision)
 
     object_dict = {

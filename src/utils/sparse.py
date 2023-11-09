@@ -1,13 +1,25 @@
 import torch
 import src
-from src.utils.tensor import is_dense, is_sorted, fast_repeat, tensor_idx, \
-    arange_interleave, fast_randperm
+from src.utils.tensor import (
+    is_dense,
+    is_sorted,
+    fast_repeat,
+    tensor_idx,
+    arange_interleave,
+    fast_randperm,
+)
 from torch_scatter import scatter_mean
 
 
 __all__ = [
-    'indices_to_pointers', 'sizes_to_pointers', 'dense_to_csr', 'csr_to_dense',
-    'sparse_sort', 'sparse_sort_along_direction', 'sparse_sample']
+    "indices_to_pointers",
+    "sizes_to_pointers",
+    "dense_to_csr",
+    "csr_to_dense",
+    "sparse_sort",
+    "sparse_sort_along_direction",
+    "sparse_sample",
+]
 
 
 def indices_to_pointers(indices: torch.LongTensor):
@@ -23,10 +35,13 @@ def indices_to_pointers(indices: torch.LongTensor):
         indices, order = indices.sort()
 
     # Convert sorted indices to pointers
-    pointers = torch.cat([
-        torch.LongTensor([0]).to(device),
-        torch.where(indices[1:] > indices[:-1])[0] + 1,
-        torch.LongTensor([indices.shape[0]]).to(device)])
+    pointers = torch.cat(
+        [
+            torch.LongTensor([0]).to(device),
+            torch.where(indices[1:] > indices[:-1])[0] + 1,
+            torch.LongTensor([indices.shape[0]]).to(device),
+        ]
+    )
 
     return pointers, order
 
@@ -52,8 +67,7 @@ def dense_to_csr(a):
 
 
 def csr_to_dense(pointers, columns, values, shape=None):
-    """Convert a CSR matrix to its dense counterpart of a given shape.
-    """
+    """Convert a CSR matrix to its dense counterpart of a given shape."""
     assert pointers.dim() == 1
     assert columns.dim() == 1
     assert values.dim() == 1
@@ -88,7 +102,9 @@ def sparse_sort(src, index, dim=0, descending=False, eps=1e-6):
     # grained src changes even with very large index values.
     f_src = src.double()
     f_min, f_max = f_src.min(dim)[0], f_src.max(dim)[0]
-    norm = (f_src - f_min)/(f_max - f_min + eps) + index.double()*(-1)**int(descending)
+    norm = (f_src - f_min) / (f_max - f_min + eps) + index.double() * (-1) ** int(
+        descending
+    )
     perm = norm.argsort(dim=dim, descending=descending)
 
     return src[perm], perm
@@ -121,7 +137,7 @@ def sparse_sort_along_direction(src, index, direction, descending=False):
     centroid = scatter_mean(src, index, dim=0)[index]
 
     # Project the points along the associated direction
-    projection = torch.einsum('ed, ed -> e', src - centroid, direction)
+    projection = torch.einsum("ed, ed -> e", src - centroid, direction)
 
     # Sort the projections
     _, perm = sparse_sort(projection, index, descending=descending)
@@ -181,8 +197,7 @@ def sparse_sample(idx, n_max=32, n_min=1, mask=None, return_pointers=False):
 
     # Sanity check
     if src.is_debug_enabled():
-        assert n_samples.le(size).all(), \
-            "Cannot sample more than the segment sizes."
+        assert n_samples.le(size).all(), "Cannot sample more than the segment sizes."
 
     # Prepare the sampled elements indices
     sample_idx = torch.arange(num_elements, device=device)
@@ -198,8 +213,7 @@ def sparse_sample(idx, n_max=32, n_min=1, mask=None, return_pointers=False):
 
     # Sanity check
     if src.is_debug_enabled():
-        assert n_samples.le(size).all(), \
-            "Cannot sample more than the segment sizes."
+        assert n_samples.le(size).all(), "Cannot sample more than the segment sizes."
 
     # Shuffle the order of elements to introduce randomness
     perm = fast_randperm(sample_idx.shape[0], device=device)

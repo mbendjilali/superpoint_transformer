@@ -3,7 +3,7 @@ from src.utils.sparse import indices_to_pointers
 from src.utils.tensor import arange_interleave
 
 
-__all__ = ['edge_index_to_uid', 'edge_wise_points']
+__all__ = ["edge_index_to_uid", "edge_wise_points"]
 
 
 def edge_index_to_uid(edge_index):

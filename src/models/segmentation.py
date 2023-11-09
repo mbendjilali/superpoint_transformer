@@ -5,8 +5,14 @@ from copy import deepcopy
 from pytorch_lightning import LightningModule
 from torchmetrics import MaxMetric, MeanMetric
 from src.metrics import ConfusionMatrix
-from src.utils import loss_with_target_histogram, atomic_to_histogram, \
-    init_weights, wandb_confusion_matrix, knn_2, garbage_collection_cuda
+from src.utils import (
+    loss_with_target_histogram,
+    atomic_to_histogram,
+    init_weights,
+    wandb_confusion_matrix,
+    knn_2,
+    garbage_collection_cuda,
+)
 from src.nn import Classifier
 from src.loss import MultiLoss
 from src.optim.lr_scheduler import ON_PLATEAU_SCHEDULERS
@@ -22,24 +28,37 @@ class PointSegmentationModule(LightningModule):
     """A LightningModule for semantic segmentation of point clouds."""
 
     def __init__(
-            self, net, criterion, optimizer, scheduler, num_classes,
-            class_names=None, sampling_loss=False, loss_type=True,
-            weighted_loss=True, init_linear=None, init_rpe=None,
-            transformer_lr_scale=1, multi_stage_loss_lambdas=None,
-            gc_every_n_steps=0, **kwargs):
+        self,
+        net,
+        criterion,
+        optimizer,
+        scheduler,
+        num_classes,
+        class_names=None,
+        sampling_loss=False,
+        loss_type=True,
+        weighted_loss=True,
+        init_linear=None,
+        init_rpe=None,
+        transformer_lr_scale=1,
+        multi_stage_loss_lambdas=None,
+        gc_every_n_steps=0,
+        **kwargs,
+    ):
         super().__init__()
 
         # Allows to access init params with 'self.hparams' attribute
         # also ensures init params will be stored in ckpt
-        self.save_hyperparameters(logger=False, ignore=['net', 'criterion'])
+        self.save_hyperparameters(logger=False, ignore=["net", "criterion"])
 
         # Loss function. If `multi_stage_loss_lambdas`, a MultiLoss is
         # built based on the input criterion
         if isinstance(criterion, MultiLoss):
             self.criterion = criterion
         elif multi_stage_loss_lambdas is not None:
-            criteria = [deepcopy(criterion)
-                        for _ in range(len(multi_stage_loss_lambdas))]
+            criteria = [
+                deepcopy(criterion) for _ in range(len(multi_stage_loss_lambdas))
+            ]
             self.criterion = MultiLoss(criteria, multi_stage_loss_lambdas)
         else:
             self.criterion = criterion
@@ -50,16 +69,18 @@ class PointSegmentationModule(LightningModule):
         self.net = net
         if self.multi_stage_loss:
             self.net.output_stage_wise = True
-            assert len(self.net.out_dim) == len(self.criterion), \
-                f"The number of items in the multi-stage loss must match the " \
-                f"number of stages in the net. Found " \
-                f"{len(self.net.out_dim)} stages, but {len(self.criterion)} " \
+            assert len(self.net.out_dim) == len(self.criterion), (
+                f"The number of items in the multi-stage loss must match the "
+                f"number of stages in the net. Found "
+                f"{len(self.net.out_dim)} stages, but {len(self.criterion)} "
                 f"criteria in the loss."
+            )
 
         # Segmentation head
         if self.multi_stage_loss:
-            self.head = ModuleList([
-                Classifier(dim, num_classes) for dim in self.net.out_dim])
+            self.head = ModuleList(
+                [Classifier(dim, num_classes) for dim in self.net.out_dim]
+            )
         else:
             self.head = Classifier(self.net.out_dim, num_classes)
 
@@ -75,14 +96,14 @@ class PointSegmentationModule(LightningModule):
         # unclassified/ignored points, which are given num_classes
         # labels
         self.num_classes = num_classes
-        self.class_names = class_names if class_names is not None \
-            else [f'class-{i}' for i in range(num_classes)]
-        self.train_cm = ConfusionMatrix(
-            num_classes, ignore_index=num_classes)
-        self.val_cm = ConfusionMatrix(
-            num_classes, ignore_index=num_classes)
-        self.test_cm = ConfusionMatrix(
-            num_classes, ignore_index=num_classes)
+        self.class_names = (
+            class_names
+            if class_names is not None
+            else [f"class-{i}" for i in range(num_classes)]
+        )
+        self.train_cm = ConfusionMatrix(num_classes, ignore_index=num_classes)
+        self.val_cm = ConfusionMatrix(num_classes, ignore_index=num_classes)
+        self.test_cm = ConfusionMatrix(num_classes, ignore_index=num_classes)
 
         # For averaging loss across batches
         self.train_loss = MeanMetric()
@@ -121,19 +142,21 @@ class PointSegmentationModule(LightningModule):
         # become tedious to track all places where num_classes affects
         # the LightningModule object.
         num_classes = self.trainer.datamodule.train_dataset.num_classes
-        assert num_classes == self.num_classes, \
-            f'LightningModule has {self.num_classes} classes while the ' \
-            f'LightningDataModule has {num_classes} classes.'
+        assert num_classes == self.num_classes, (
+            f"LightningModule has {self.num_classes} classes while the "
+            f"LightningDataModule has {num_classes} classes."
+        )
 
         self.class_names = self.trainer.datamodule.train_dataset.class_names
 
         if not self.hparams.weighted_loss:
             return
 
-        if not hasattr(self.criterion, 'weight'):
+        if not hasattr(self.criterion, "weight"):
             log.warning(
                 f"{self.criterion} does not have a 'weight' attribute. "
-                f"Class weights will be ignored...")
+                f"Class weights will be ignored..."
+            )
             return
 
         # Set class weights for the
@@ -184,10 +207,10 @@ class PointSegmentationModule(LightningModule):
         # fashion. Cross-Entropy with pointwise_loss is equivalent to
         # KL-divergence
         if self.multi_stage_loss:
-            if self.hparams.loss_type == 'ce':
+            if self.hparams.loss_type == "ce":
                 loss = self.criterion(logits, [y.argmax(dim=1) for y in y_hist])
                 y_hist = y_hist[0]
-            elif self.hparams.loss_type == 'wce':
+            elif self.hparams.loss_type == "wce":
                 y_hist_dominant = []
                 for y in y_hist:
                     y_dominant = y.argmax(dim=1)
@@ -196,60 +219,72 @@ class PointSegmentationModule(LightningModule):
                     y_hist_dominant.append(y_hist_dominant_)
                 loss = 0
                 enum = zip(
-                    self.criterion.lambdas, self.criterion.criteria, logits, y_hist_dominant)
+                    self.criterion.lambdas,
+                    self.criterion.criteria,
+                    logits,
+                    y_hist_dominant,
+                )
                 for lamb, criterion, a, b in enum:
                     loss = loss + lamb * loss_with_target_histogram(criterion, a, b)
                 y_hist = y_hist[0]
-            elif self.hparams.loss_type == 'ce_kl':
+            elif self.hparams.loss_type == "ce_kl":
                 loss = 0
                 enum = zip(
-                    self.criterion.lambdas, self.criterion.criteria, logits, y_hist)
+                    self.criterion.lambdas, self.criterion.criteria, logits, y_hist
+                )
                 for i, (lamb, criterion, a, b) in enumerate(enum):
                     if i == 0:
                         loss = loss + criterion(a, b.argmax(dim=1))
                         continue
                     loss = loss + lamb * loss_with_target_histogram(criterion, a, b)
                 y_hist = y_hist[0]
-            elif self.hparams.loss_type == 'wce_kl':
+            elif self.hparams.loss_type == "wce_kl":
                 loss = 0
                 enum = zip(
-                    self.criterion.lambdas, self.criterion.criteria, logits, y_hist)
+                    self.criterion.lambdas, self.criterion.criteria, logits, y_hist
+                )
                 for i, (lamb, criterion, a, b) in enumerate(enum):
                     if i == 0:
                         y_dominant = b.argmax(dim=1)
                         y_hist_dominant = torch.zeros_like(b)
                         y_hist_dominant[:, y_dominant] = b.sum(dim=1)
-                        loss = loss + loss_with_target_histogram(criterion, a, y_hist_dominant)
+                        loss = loss + loss_with_target_histogram(
+                            criterion, a, y_hist_dominant
+                        )
                         continue
                     loss = loss + lamb * loss_with_target_histogram(criterion, a, b)
                 y_hist = y_hist[0]
-            elif self.hparams.loss_type == 'kl':
+            elif self.hparams.loss_type == "kl":
                 loss = 0
                 enum = zip(
-                    self.criterion.lambdas, self.criterion.criteria, logits, y_hist)
+                    self.criterion.lambdas, self.criterion.criteria, logits, y_hist
+                )
                 for lamb, criterion, a, b in enum:
                     loss = loss + lamb * loss_with_target_histogram(criterion, a, b)
                 y_hist = y_hist[0]
             else:
                 raise ValueError(f"Unknown multi-stage loss '{self.hparams.loss_type}'")
         else:
-            if self.hparams.loss_type == 'ce':
+            if self.hparams.loss_type == "ce":
                 loss = self.criterion(logits, y_hist.argmax(dim=1))
-            elif self.hparams.loss_type == 'wce':
+            elif self.hparams.loss_type == "wce":
                 y_dominant = y_hist.argmax(dim=1)
                 y_hist_dominant = torch.zeros_like(y_hist)
                 y_hist_dominant[:, y_dominant] = y_hist.sum(dim=1)
-                loss = loss_with_target_histogram(self.criterion, logits, y_hist_dominant)
-            elif self.hparams.loss_type == 'kl':
+                loss = loss_with_target_histogram(
+                    self.criterion, logits, y_hist_dominant
+                )
+            elif self.hparams.loss_type == "kl":
                 loss = loss_with_target_histogram(self.criterion, logits, y_hist)
             else:
-                raise ValueError(f"Unknown single-stage loss '{self.hparams.loss_type}'")
+                raise ValueError(
+                    f"Unknown single-stage loss '{self.hparams.loss_type}'"
+                )
 
         return loss, preds.detach(), y_hist.detach()
 
     def step_single_run_inference(self, nag):
-        """Single-run inference
-        """
+        """Single-run inference"""
         y_hist = self.step_get_y_hist(nag)
         logits = self.forward(nag)
         if self.multi_stage_loss:
@@ -265,9 +300,8 @@ class PointSegmentationModule(LightningModule):
         # Since the transform may change the sampling of the nodes, we
         # save their input id here before anything. This will allow us
         # to fuse the multiple predictions for each node
-        KEY = 'tta_node_id'
-        transform.transforms = [NAGSaveNodeIndex(key=KEY)] \
-                               + transform.transforms
+        KEY = "tta_node_id"
+        transform.transforms = [NAGSaveNodeIndex(key=KEY)] + transform.transforms
 
         # Recover the target labels from the reference NAG
         y_hist = self.step_get_y_hist(nag)
@@ -290,7 +324,8 @@ class PointSegmentationModule(LightningModule):
                     num_classes = out[0].shape[1]
                     logits = [
                         torch.zeros(num_points, num_classes, device=nag.device)
-                        for num_points in nag.num_points[1:]]
+                        for num_points in nag.num_points[1:]
+                    ]
                 for i in range(len(out)):
                     node_id = nag_[i + 1][KEY]
                     logits[i][node_id] += out[i]
@@ -299,7 +334,8 @@ class PointSegmentationModule(LightningModule):
                 if logits is None:
                     num_classes = out.shape[1]
                     logits = torch.zeros(
-                        nag.num_points[1], num_classes, device=nag.device)
+                        nag.num_points[1], num_classes, device=nag.device
+                    )
                 node_id = nag_[1][KEY]
                 logits[node_id] += out
 
@@ -327,15 +363,19 @@ class PointSegmentationModule(LightningModule):
                     f"{num_seen}, num_unseen={num_unseen}, num_left_out="
                     f"{num_left_out}. These left out nodes will default to "
                     f"label-0 class prediction. Consider sampling less nodes "
-                    f"in the augmentations, or increase the search radius")
+                    f"in the augmentations, or increase the search radius"
+                )
             if self.multi_stage_loss:
                 logits[0][unseen_idx] = logits[0][seen_idx][neighbors]
             else:
                 logits[unseen_idx] = logits[seen_idx][neighbors]
 
         # Compute the global prediction
-        preds = torch.argmax(logits, dim=1) if not self.multi_stage_loss \
+        preds = (
+            torch.argmax(logits, dim=1)
+            if not self.multi_stage_loss
             else torch.argmax(logits[0], dim=1)
+        )
 
         return logits, preds, y_hist
 
@@ -343,8 +383,9 @@ class PointSegmentationModule(LightningModule):
         # Return None if the required labels cannot be found in the NAG
         if self.hparams.sampling_loss and nag[0].y is None:
             return
-        elif self.multi_stage_loss and \
-                not all([nag[i].y is not None for i in range(1, nag.num_levels)]):
+        elif self.multi_stage_loss and not all(
+            [nag[i].y is not None for i in range(1, nag.num_levels)]
+        ):
             return
         elif nag[1].y is None:
             return
@@ -356,9 +397,10 @@ class PointSegmentationModule(LightningModule):
         if self.hparams.sampling_loss and self.multi_stage_loss:
             y_hist = [
                 atomic_to_histogram(
-                    nag[0].y,
-                    nag.get_super_index(i_level), n_bins=self.num_classes + 1)
-                for i_level in range(1, nag.num_levels)]
+                    nag[0].y, nag.get_super_index(i_level), n_bins=self.num_classes + 1
+                )
+                for i_level in range(1, nag.num_levels)
+            ]
 
         elif self.hparams.sampling_loss:
             idx = nag[0].super_index
@@ -377,9 +419,9 @@ class PointSegmentationModule(LightningModule):
         # Remove the last bin of the histogram, accounting for
         # unlabeled/ignored points
         if self.multi_stage_loss:
-            y_hist = [yh[:, :self.num_classes] for yh in y_hist]
+            y_hist = [yh[:, : self.num_classes] for yh in y_hist]
         else:
-            y_hist = y_hist[:, :self.num_classes]
+            y_hist = y_hist[:, : self.num_classes]
 
         return y_hist
 
@@ -390,8 +432,8 @@ class PointSegmentationModule(LightningModule):
         self.train_loss(loss)
         self.train_cm(preds, targets)
         self.log(
-            "train/loss", self.train_loss, on_step=False, on_epoch=True,
-            prog_bar=True)
+            "train/loss", self.train_loss, on_step=False, on_epoch=True, prog_bar=True
+        )
 
         # return loss or backpropagation will fail
         return loss
@@ -412,9 +454,7 @@ class PointSegmentationModule(LightningModule):
         # update and log metrics
         self.val_loss(loss)
         self.val_cm(preds, targets)
-        self.log(
-            "val/loss", self.val_loss, on_step=False, on_epoch=True,
-            prog_bar=True)
+        self.log("val/loss", self.val_loss, on_step=False, on_epoch=True, prog_bar=True)
 
     def on_validation_epoch_end(self):
         # `outputs` is a list of dicts returned from `validation_step()`
@@ -464,8 +504,8 @@ class PointSegmentationModule(LightningModule):
         if targets is not None:
             self.test_cm(preds, targets)
         self.log(
-            "test/loss", self.test_loss, on_step=False, on_epoch=True,
-            prog_bar=True)
+            "test/loss", self.test_loss, on_step=False, on_epoch=True, prog_bar=True
+        )
 
         # Prepare submission for held-out test sets
         if self.trainer.datamodule.hparams.submit:
@@ -473,7 +513,8 @@ class PointSegmentationModule(LightningModule):
             l0_pos = nag[0].pos.detach().cpu()
             l0_preds = preds[nag[0].super_index].detach().cpu()
             self.trainer.datamodule.test_dataset.make_submission(
-                batch_idx, l0_preds, l0_pos, submission_dir=self.submission_dir)
+                batch_idx, l0_preds, l0_pos, submission_dir=self.submission_dir
+            )
 
     def on_test_epoch_end(self):
         # `outputs` is a list of dicts returned from `test_step()`
@@ -486,13 +527,18 @@ class PointSegmentationModule(LightningModule):
 
         # Log confusion matrix to wandb
         if isinstance(self.logger, WandbLogger):
-            self.logger.experiment.log({
-                "test/cm": wandb_confusion_matrix(
-                    self.test_cm.confmat, class_names=self.class_names)})
+            self.logger.experiment.log(
+                {
+                    "test/cm": wandb_confusion_matrix(
+                        self.test_cm.confmat, class_names=self.class_names
+                    )
+                }
+            )
 
         if self.trainer.datamodule.hparams.submit:
             self.trainer.datamodule.test_dataset.finalize_submission(
-                self.submission_dir)
+                self.submission_dir
+            )
 
         self.test_cm.reset()
 
@@ -504,21 +550,26 @@ class PointSegmentationModule(LightningModule):
             https://pytorch-lightning.readthedocs.io/en/latest/common/lightning_module.html#configure-optimizers
         """
         # Differential learning rate for transformer blocks
-        t_names = ['transformer_blocks', 'down_pool_block']
-        lr = self.hparams.optimizer.keywords['lr']
+        t_names = ["transformer_blocks", "down_pool_block"]
+        lr = self.hparams.optimizer.keywords["lr"]
         t_lr = lr * self.hparams.transformer_lr_scale
         param_dicts = [
             {
                 "params": [
                     p
                     for n, p in self.named_parameters()
-                    if all([t not in n for t in t_names]) and p.requires_grad]},
+                    if all([t not in n for t in t_names]) and p.requires_grad
+                ]
+            },
             {
                 "params": [
                     p
                     for n, p in self.named_parameters()
-                    if any([t in n for t in t_names]) and p.requires_grad],
-                "lr": t_lr}]
+                    if any([t in n for t in t_names]) and p.requires_grad
+                ],
+                "lr": t_lr,
+            },
+        ]
         optimizer = self.hparams.optimizer(params=param_dicts)
 
         # Return the optimizer if no scheduler in the config
@@ -536,7 +587,9 @@ class PointSegmentationModule(LightningModule):
                 "monitor": "val/loss",
                 "interval": "epoch",
                 "frequency": 1,
-                "reduce_on_plateau": reduce_on_plateau}}
+                "reduce_on_plateau": reduce_on_plateau,
+            },
+        }
 
     def load_state_dict(self, state_dict, strict=True):
         """Basic `load_state_dict` from `torch.nn.Module` with a little
@@ -556,7 +609,7 @@ class PointSegmentationModule(LightningModule):
             # state_dict
             keys = []
             for key in state_dict.keys():
-                if key.startswith('criterion.') and key.endswith('.weight'):
+                if key.startswith("criterion.") and key.endswith(".weight"):
                     keys.append(key)
             class_weight = state_dict[keys[0]] if len(keys) > 0 else None
             for key in keys:
@@ -567,8 +620,9 @@ class PointSegmentationModule(LightningModule):
 
         # If need be, assign the class weights to the criterion
         if self.multi_stage_loss:
-            self.criterion.weight = class_weight if class_weight is not None \
-                else class_weight_bckp
+            self.criterion.weight = (
+                class_weight if class_weight is not None else class_weight_bckp
+            )
 
     @staticmethod
     def sanitize_step_output(out_dict):
@@ -579,9 +633,11 @@ class PointSegmentationModule(LightningModule):
         here. This avoids memory leak.
         """
         return {
-            k: v if ((k == "loss") or (not isinstance(v, torch.Tensor)))
+            k: v
+            if ((k == "loss") or (not isinstance(v, torch.Tensor)))
             else v.detach().cpu()
-            for k, v in out_dict.items()}
+            for k, v in out_dict.items()
+        }
 
 
 if __name__ == "__main__":

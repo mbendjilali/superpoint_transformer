@@ -10,21 +10,23 @@ from src.utils.sparse import dense_to_csr, csr_to_dense
 
 
 __all__ = [
-    'dated_dir', 'save_tensor', 'load_tensor', 'save_dense_to_csr',
-    'load_csr_to_dense']
+    "dated_dir",
+    "save_tensor",
+    "load_tensor",
+    "save_dense_to_csr",
+    "load_csr_to_dense",
+]
 
 
 def dated_dir(root, create=False):
     """Returns a directory path in root, named based on the current date
     and time.
     """
-    date = '-'.join([
-        f'{getattr(datetime.now(), x)}'
-        for x in ['year', 'month', 'day']])
-    time = '-'.join([
-        f'{getattr(datetime.now(), x)}'
-        for x in ['hour', 'minute', 'second']])
-    dir_name = f'{date}_{time}'
+    date = "-".join([f"{getattr(datetime.now(), x)}" for x in ["year", "month", "day"]])
+    time = "-".join(
+        [f"{getattr(datetime.now(), x)}" for x in ["hour", "minute", "second"]]
+    )
+    dir_name = f"{date}_{time}"
     path = os.path.join(root, dir_name)
     if create and not os.path.exists(path):
         os.makedirs(path, exist_ok=True)
@@ -44,7 +46,7 @@ def save_tensor(x, f, key, fp_dtype=torch.float):
     :return:
     """
     if not isinstance(f, (h5py.File, h5py.Group)):
-        with h5py.File(f, 'w') as file:
+        with h5py.File(f, "w") as file:
             save_tensor(x, file, key, fp_dtype=fp_dtype)
         return
 
@@ -68,7 +70,7 @@ def load_tensor(f, key=None, idx=None):
     :return:
     """
     if not isinstance(f, (h5py.File, h5py.Group, h5py.Dataset)):
-        with h5py.File(f, 'r') as file:
+        with h5py.File(f, "r") as file:
             out = load_tensor(file, key=key, idx=idx)
         return out
 
@@ -102,17 +104,17 @@ def save_dense_to_csr(x, f, fp_dtype=torch.float):
     :return:
     """
     if not isinstance(f, (h5py.File, h5py.Group)):
-        with h5py.File(f, 'w') as file:
+        with h5py.File(f, "w") as file:
             save_dense_to_csr(x, file, fp_dtype=fp_dtype)
         return
 
     assert isinstance(x, torch.Tensor) and x.dim() == 2
 
     pointers, columns, values = dense_to_csr(x)
-    save_tensor(pointers, f, 'pointers', fp_dtype=fp_dtype)
-    save_tensor(columns, f, 'columns', fp_dtype=fp_dtype)
-    save_tensor(values, f, 'values', fp_dtype=fp_dtype)
-    f.create_dataset('shape', data=np.array(x.shape))
+    save_tensor(pointers, f, "pointers", fp_dtype=fp_dtype)
+    save_tensor(columns, f, "columns", fp_dtype=fp_dtype)
+    save_tensor(values, f, "values", fp_dtype=fp_dtype)
+    f.create_dataset("shape", data=np.array(x.shape))
 
 
 def load_csr_to_dense(f, idx=None, verbose=False):
@@ -127,10 +129,10 @@ def load_csr_to_dense(f, idx=None, verbose=False):
     :param verbose: bool
     :return:
     """
-    KEYS = ['pointers', 'columns', 'values', 'shape']
+    KEYS = ["pointers", "columns", "values", "shape"]
 
     if not isinstance(f, (h5py.File, h5py.Group)):
-        with h5py.File(f, 'r') as file:
+        with h5py.File(f, "r") as file:
             out = load_csr_to_dense(file, idx=idx, verbose=verbose)
         return out
 
@@ -140,32 +142,32 @@ def load_csr_to_dense(f, idx=None, verbose=False):
 
     if idx is None or idx.shape[0] == 0:
         start = time()
-        pointers = load_tensor(f['pointers'])
-        columns = load_tensor(f['columns'])
-        values = load_tensor(f['values'])
-        shape = load_tensor(f['shape'])
+        pointers = load_tensor(f["pointers"])
+        columns = load_tensor(f["columns"])
+        values = load_tensor(f["values"])
+        shape = load_tensor(f["shape"])
         if verbose:
-            print(f'load_csr_to_dense read all      : {time() - start:0.5f}s')
+            print(f"load_csr_to_dense read all      : {time() - start:0.5f}s")
         start = time()
         out = csr_to_dense(pointers, columns, values, shape=shape)
         if verbose:
-            print(f'load_csr_to_dense csr_to_dense  : {time() - start:0.5f}s')
+            print(f"load_csr_to_dense csr_to_dense  : {time() - start:0.5f}s")
         return out
 
     # Read only pointers start and end indices based on idx
     start = time()
-    ptr_start = load_tensor(f['pointers'], idx=idx)
-    ptr_end = load_tensor(f['pointers'], idx=idx + 1)
+    ptr_start = load_tensor(f["pointers"], idx=idx)
+    ptr_end = load_tensor(f["pointers"], idx=idx + 1)
     if verbose:
-        print(f'load_csr_to_dense read ptr      : {time() - start:0.5f}s')
+        print(f"load_csr_to_dense read ptr      : {time() - start:0.5f}s")
 
     # Create the new pointers
     start = time()
-    pointers = torch.cat([
-        torch.zeros(1, dtype=ptr_start.dtype),
-        torch.cumsum(ptr_end - ptr_start, 0)])
+    pointers = torch.cat(
+        [torch.zeros(1, dtype=ptr_start.dtype), torch.cumsum(ptr_end - ptr_start, 0)]
+    )
     if verbose:
-        print(f'load_csr_to_dense pointers      : {time() - start:0.5f}s')
+        print(f"load_csr_to_dense pointers      : {time() - start:0.5f}s")
 
     # Create the indexing tensor to select and order values.
     # Simply, we could have used a list of slices but we want to
@@ -174,26 +176,25 @@ def load_csr_to_dense(f, idx=None, verbose=False):
     start = time()
     sizes = pointers[1:] - pointers[:-1]
     val_idx = torch.arange(pointers[-1])
-    val_idx -= torch.arange(pointers[-1] + 1)[
-        pointers[:-1]].repeat_interleave(sizes)
+    val_idx -= torch.arange(pointers[-1] + 1)[pointers[:-1]].repeat_interleave(sizes)
     val_idx += ptr_start.repeat_interleave(sizes)
     if verbose:
-        print(f'load_csr_to_dense val_idx       : {time() - start:0.5f}s')
+        print(f"load_csr_to_dense val_idx       : {time() - start:0.5f}s")
 
     # Read the columns and values, now we have computed the val_idx.
     # Make sure to update the output shape too, since the rows have been
     # indexed
     start = time()
-    columns = load_tensor(f['columns'], idx=val_idx)
-    values = load_tensor(f['values'], idx=val_idx)
-    shape = load_tensor(f['shape'])
+    columns = load_tensor(f["columns"], idx=val_idx)
+    values = load_tensor(f["values"], idx=val_idx)
+    shape = load_tensor(f["shape"])
     shape[0] = idx.shape[0]
     if verbose:
-        print(f'load_csr_to_dense read values   : {time() - start:0.5f}s')
+        print(f"load_csr_to_dense read values   : {time() - start:0.5f}s")
 
     start = time()
     out = csr_to_dense(pointers, columns, values, shape=shape)
     if verbose:
-        print(f'load_csr_to_dense csr_to_dense  : {time() - start:0.5f}s')
+        print(f"load_csr_to_dense csr_to_dense  : {time() - start:0.5f}s")
 
     return out

@@ -7,12 +7,16 @@ from src.nn.mlp import FFN
 
 
 __all__ = [
-    'CatInjection', 'AdditiveInjection', 'AdditiveMLPInjection',
-    'FourierInjection', 'LearnableFourierInjection']
+    "CatInjection",
+    "AdditiveInjection",
+    "AdditiveMLPInjection",
+    "FourierInjection",
+    "LearnableFourierInjection",
+]
 
 
 class BasePositionalInjection(nn.Module):
-    def __init__(self, dim=None, x_dim=None, fusion='additive', **kwargs):
+    def __init__(self, dim=None, x_dim=None, fusion="additive", **kwargs):
         """Base class for positional information injection. Takes care
         fusion with a potential embedding vector.
 
@@ -31,8 +35,9 @@ class BasePositionalInjection(nn.Module):
         super().__init__()
         self.dim = dim
         self.fusion = fusion
-        self.proj = nn.Identity() if x_dim is None or dim is None \
-            else nn.Linear(x_dim, dim)
+        self.proj = (
+            nn.Identity() if x_dim is None or dim is None else nn.Linear(x_dim, dim)
+        )
 
         # Fusion operator
         self.fusion = fusion_factory(fusion)
@@ -51,7 +56,7 @@ class CatInjection(BasePositionalInjection):
         """Simple child class of BasePositionalInjection equivalent to
         a CatFusion.
         """
-        super().__init__(dim=None, x_dim=None, fusion='cat')
+        super().__init__(dim=None, x_dim=None, fusion="cat")
 
     def _encode(self, pos):
         return pos
@@ -62,7 +67,7 @@ class AdditiveInjection(BasePositionalInjection):
         """Simple child class of BasePositionalInjection equivalent to
         an AdditiveFusion.
         """
-        super().__init__(dim=None, x_dim=None, fusion='additive')
+        super().__init__(dim=None, x_dim=None, fusion="additive")
 
     def _encode(self, pos):
         return pos
@@ -73,7 +78,7 @@ class AdditiveMLPInjection(BasePositionalInjection):
         """Simple child class of BasePositionalInjection equivalent to
         an MLP followed by AdditiveFusion.
         """
-        super().__init__(dim=dim, x_dim=None, fusion='additive')
+        super().__init__(dim=dim, x_dim=None, fusion="additive")
 
         self.ffn = FFN(3, out_dim=self.dim, activation=nn.LeakyReLU())
 
@@ -83,8 +88,8 @@ class AdditiveMLPInjection(BasePositionalInjection):
 
 class FourierInjection(BasePositionalInjection):
     def __init__(
-            self, dim=None, x_dim=None, fusion='additive', f_min=1e-1,
-            f_max=1e1, **kwargs):
+        self, dim=None, x_dim=None, fusion="additive", f_min=1e-1, f_max=1e1, **kwargs
+    ):
         """Convert [N, M] M-dimensional positions into [N, dim] encodings
         using sine and cosine decomposition along each axis. Expects dim
         to be a multiple of 2*M, for each of the M-dimensions to have
@@ -104,7 +109,8 @@ class FourierInjection(BasePositionalInjection):
 
     def _encode(self, pos):
         return fourier_position_encoder(
-            pos, self.dim, f_min=self.f_min, f_max=self.f_max)
+            pos, self.dim, f_min=self.f_min, f_max=self.f_max
+        )
 
 
 class LearnableFourierInjection(BasePositionalInjection):
@@ -131,12 +137,16 @@ class LearnableFourierInjection(BasePositionalInjection):
         self.Wr = nn.Linear(self.M, self.F_dim // 2, bias=False)
         # MLP (GeLU(F @ W1 + B1) @ W2 + B2 (eq. 6)
         self.ffn = FFN(
-            self.F_dim, hidden_dim=self.H_dim, out_dim=self.D,
-            activation=nn.GELU(), drop=None)
+            self.F_dim,
+            hidden_dim=self.H_dim,
+            out_dim=self.D,
+            activation=nn.GELU(),
+            drop=None,
+        )
         self.init_weights()
 
     def init_weights(self):
-        nn.init.normal_(self.Wr.weight.data, mean=0, std=self.gamma ** -2)
+        nn.init.normal_(self.Wr.weight.data, mean=0, std=self.gamma**-2)
 
     def forward(self, x):
         """

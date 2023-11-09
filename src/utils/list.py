@@ -1,14 +1,13 @@
-__all__ = ['listify', 'listify_with_reference']
+__all__ = ["listify", "listify_with_reference"]
 
 
 def listify(obj):
-    """Convert `obj` to nested lists.
-    """
+    """Convert `obj` to nested lists."""
     if obj is None or isinstance(obj, str):
         return obj
-    if not hasattr(obj, '__len__'):
+    if not hasattr(obj, "__len__"):
         return obj
-    if hasattr(obj, 'dim') and obj.dim() == 0:
+    if hasattr(obj, "dim") and obj.dim() == 0:
         return obj
     if len(obj) == 0:
         return obj

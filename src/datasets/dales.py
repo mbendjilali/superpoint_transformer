@@ -18,40 +18,43 @@ log = logging.getLogger(__name__)
 # solve this:
 # https://stackoverflow.com/questions/73125231/pytorch-dataloaders-bad-file-descriptor-and-eof-for-workers0
 import torch.multiprocessing
-torch.multiprocessing.set_sharing_strategy('file_system')
+
+torch.multiprocessing.set_sharing_strategy("file_system")
 
 
-__all__ = ['DALES', 'MiniDALES']
+__all__ = ["DALES", "MiniDALES"]
 
 
 ########################################################################
 #                                 Utils                                #
 ########################################################################
 
+
 def read_dales_tile(
-        filepath, xyz=True, intensity=True, semantic=True, instance=False,
-        remap=False):
+    filepath, xyz=True, intensity=True, semantic=True, instance=False, remap=False
+):
     data = Data()
-    key = 'testing'
+    key = "testing"
     with open(filepath, "rb") as f:
         tile = PlyData.read(f)
 
         if xyz:
-            data.pos = torch.stack([
-                torch.FloatTensor(tile[key][axis])
-                for axis in ["x", "y", "z"]], dim=-1)
+            data.pos = torch.stack(
+                [torch.FloatTensor(tile[key][axis]) for axis in ["x", "y", "z"]], dim=-1
+            )
 
         if intensity:
             # Heuristic to bring the intensity distribution in [0, 1]
-            data.intensity = torch.FloatTensor(
-                tile[key]['intensity']).clip(min=0, max=60000) / 60000
+            data.intensity = (
+                torch.FloatTensor(tile[key]["intensity"]).clip(min=0, max=60000) / 60000
+            )
 
         if semantic:
-            y = torch.LongTensor(tile[key]['sem_class'])
+            y = torch.LongTensor(tile[key]["sem_class"])
             data.y = torch.from_numpy(ID2TRAINID)[y] if remap else y
 
         if instance:
-            data.instance = torch.LongTensor(tile[key]['ins_class'])
+            data.instance = torch.LongTensor(tile[key]["ins_class"])
 
     return data
 
@@ -59,6 +62,7 @@ def read_dales_tile(
 ########################################################################
 #                                DALES                                 #
 ########################################################################
+
 
 class DALES(BaseDataset):
     """DALES dataset.
@@ -118,8 +122,7 @@ class DALES(BaseDataset):
         return TILES
 
     def download_dataset(self):
-        """Download the DALES Objects dataset.
-        """
+        """Download the DALES Objects dataset."""
         # Manually download the dataset
         if not osp.exists(osp.join(self.root, self._zip_name)):
             log.error(
@@ -133,7 +136,8 @@ class DALES(BaseDataset):
                 f"{self.raw_file_structure}\n"
                 f"⛔ Make sure you DO NOT download the "
                 f"'{self._las_name}' nor '{self._ply_name}' versions, which "
-                f"do not contain all required point attributes.\n")
+                f"do not contain all required point attributes.\n"
+            )
             sys.exit(1)
 
         # Unzip the file and rename it into the `root/raw/` directory
@@ -146,8 +150,8 @@ class DALES(BaseDataset):
         be passed to `self.pre_transform`.
         """
         return read_dales_tile(
-            raw_cloud_path, intensity=True, semantic=True, instance=False,
-            remap=True)
+            raw_cloud_path, intensity=True, semantic=True, instance=False, remap=True
+        )
 
     @property
     def raw_file_structure(self):
@@ -163,33 +167,32 @@ class DALES(BaseDataset):
         path (relative to `self.raw_dir`) of the corresponding raw
         cloud.
         """
-        if id in self.all_cloud_ids['train']:
-            stage = 'train'
-        elif id in self.all_cloud_ids['val']:
-            stage = 'train'
-        elif id in self.all_cloud_ids['test']:
-            stage = 'test'
+        if id in self.all_cloud_ids["train"]:
+            stage = "train"
+        elif id in self.all_cloud_ids["val"]:
+            stage = "train"
+        elif id in self.all_cloud_ids["test"]:
+            stage = "test"
         else:
             raise ValueError(f"Unknown tile id '{id}'")
-        return osp.join(stage, self.id_to_base_id(id) + '.ply')
+        return osp.join(stage, self.id_to_base_id(id) + ".ply")
 
     def processed_to_raw_path(self, processed_path):
         """Return the raw cloud path corresponding to the input
         processed path.
         """
         # Extract useful information from <path>
-        stage, hash_dir, cloud_id = \
-            osp.splitext(processed_path)[0].split('/')[-3:]
+        stage, hash_dir, cloud_id = osp.splitext(processed_path)[0].split("/")[-3:]
 
         # Raw 'val' and 'trainval' tiles are all located in the
         # 'raw/train/' directory
-        stage = 'train' if stage in ['trainval', 'val'] else stage
+        stage = "train" if stage in ["trainval", "val"] else stage
 
         # Remove the tiling in the cloud_id, if any
         base_cloud_id = self.id_to_base_id(cloud_id)
 
         # Read the raw cloud data
-        raw_path = osp.join(self.raw_dir, stage, base_cloud_id + '.ply')
+        raw_path = osp.join(self.raw_dir, stage, base_cloud_id + ".ply")
 
         return raw_path
 
@@ -198,15 +201,17 @@ class DALES(BaseDataset):
 #                              MiniDALES                               #
 ########################################################################
 
+
 class MiniDALES(DALES):
     """A mini version of DALES with only a few windows for
     experimentation.
     """
+
     _NUM_MINI = 2
 
     @property
     def all_cloud_ids(self):
-        return {k: v[:self._NUM_MINI] for k, v in super().all_cloud_ids.items()}
+        return {k: v[: self._NUM_MINI] for k, v in super().all_cloud_ids.items()}
 
     @property
     def data_subdir_name(self):
