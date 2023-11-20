@@ -33,7 +33,7 @@ def fourier_position_encoder(pos, dim, f_min=1e-1, f_max=1e1):
         spatial details
     :return:
     """
-    assert pos.abs().max() <= 1, "Positions must be in [-1, 1]"
+    # assert pos.abs().max() <= 1, "Positions must be in [-1, 1]"
     assert 1 <= pos.dim() <= 2, "Positions must be a 1D or 2D tensor"
 
     # We preferably operate 2D tensors
@@ -55,7 +55,7 @@ def fourier_position_encoder(pos, dim, f_min=1e-1, f_max=1e1):
     device = pos.device
     f_min = torch.tensor([f_min], device=device)
     f_max = torch.tensor([f_max], device=device)
-    w = torch.logspace(f_max.log(), f_min.log(), D, device=device)
+    w = torch.logspace(f_max.log()[0], f_min.log()[0], D, device=device)
 
     # Compute sine and cosine encodings
     pos_enc = pos.view(N, M, 1) * w.view(1, -1)

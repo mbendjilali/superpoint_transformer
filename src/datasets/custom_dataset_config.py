@@ -7,7 +7,7 @@ from pathlib import Path
 ########################################################################
 
 
-raw_dir = Path("/path/to/raw/directory")
+raw_dir = Path("/data/Moussa/V3-1-0_wHAG_training_set/hag/raw")
 
 TILES = {
     "train": [

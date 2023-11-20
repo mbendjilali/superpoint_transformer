@@ -4,6 +4,7 @@ from src.nn import MLP, TransformerBlock, BatchNorm, UnitSphereNorm
 from src.nn.pool import pool_factory
 from src.nn.unpool import *
 from src.nn.fusion import CatFusion, fusion_factory
+from src.nn.position_encoding import FourierInjection
 
 
 __all__ = ['Stage', 'DownNFuseStage', 'UpNFuseStage', 'PointStage']
@@ -206,7 +207,8 @@ class Stage(nn.Module):
 
         # Append normalized coordinates to the node features
         if pos is not None:
-            pos, diameter_parent = self.pos_norm(pos, super_index, w=node_size)
+            _, diameter_parent = self.pos_norm(pos, super_index, w=node_size)
+            pos = FourierInjection(16)._encode(pos=pos)
             if self.use_pos:
                 x = self.feature_fusion(pos, x)
         else:
